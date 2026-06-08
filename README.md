@@ -37,7 +37,6 @@ O jogo apresenta uma sequência de introdução completa com tela do console fic
 | `D` / `→` | Mover para a direita |
 | `Espaço` | Pular |
 | `Esc` | Pausar / Retomar |
-| Mouse | Controlar câmera |
 
 ---
 

@@ -1150,12 +1150,13 @@
 
     <!-- ===== COPYRIGHT ===== -->
     <div id="copyright-screen" style="display:none; flex-direction:column;">
-        <p>© 2015 Renan Studios. Todos os direitos reservados.<br>
+        <p>© 2015 Renan Studios.<br>
         FooshLookets Adventure e todos os títulos, logotipos e personagens relacionados<br>
         são propriedade de Renan Studios.<br><br>
-        Abrir o jogo e usar o software constitui aceitação do<br>
-        Contrato de Licença de Software disponível em renanstudios.com/licenca.<br>
-        Todas as outras marcas e nomes comerciais são propriedade de seus respectivos donos.</p>
+        Este jogo foi produzido exclusivamente para fins de entretenimento pessoal.<br>
+        Não há qualquer intenção comercial ou obtenção de lucro com este projeto.<br>
+        As músicas utilizadas pertencem aos seus respectivos autores e são usadas<br>
+        sem fins lucrativos, por não ter sido encontrada alternativa equivalente de uso livre.</p>
     </div>
 
     <!-- ===== TELA DE TÍTULO ===== -->
@@ -1393,6 +1394,11 @@
         // Estado de animação do FooshLooket
         let FL_anim = 'idle';
         let FL_jumpT = 0;
+
+        // AFK: tempo sem input para começar a dançar
+        const AFK_TIMEOUT = 30; // segundos
+        let lastInputTime = performance.now() / 1000;
+        let isAFK = false;
         const FL_JUMP_DUR = 0.55;
         let FL_wasGrounded = true;
         let FL_landingSquash = 0;   // controla squash ao aterrar
@@ -1557,11 +1563,22 @@
             FL_wasGrounded = isGrounded;
             FL_landingSquash = Math.max(0, FL_landingSquash - delta * 6);
 
+            // Detecta AFK
+            const nowSec = performance.now() / 1000;
+            if (isMoving || !isGrounded) {
+                lastInputTime = nowSec;
+                isAFK = false;
+            } else if (!isAFK && (nowSec - lastInputTime) >= AFK_TIMEOUT) {
+                isAFK = true;
+            }
+
             // Determina animação
             if (!isGrounded) {
                 FL_anim = 'jump';
             } else if (isMoving) {
                 FL_anim = 'walk';
+            } else if (isAFK) {
+                FL_anim = 'dance';
             } else {
                 FL_anim = 'idle';
             }
@@ -1620,6 +1637,29 @@
                 tMS   = 1 + Math.abs(cw)*0.4;
                 // Balanço lateral leve
                 tLeanZ = sw * 0.08;
+            }
+            else if(FL_anim==='dance'){
+                const d1=Math.sin(t*5), d2=Math.cos(t*5), d3=Math.sin(t*2.5);
+                const wave=Math.sin(t*3);
+                tBOY  = Math.abs(d1)*0.15 + d3*0.1;
+                // Inclinação lateral rítmica
+                tLeanZ = d3 * 0.18;
+                tLeanX = Math.abs(d1) * 0.05;
+                tBSX  = 1 + Math.abs(d2)*0.04;
+                tBSY  = 1 - Math.abs(d2)*0.04;
+                // Braços levantam de forma livre e divertida
+                tLSZ  = 0.5 + d1*0.5;
+                tRSZ  = -0.5 - d2*0.5;
+                tLSX  = wave*0.3;
+                tRSX  = -wave*0.3;
+                tLEZ  = d1*0.5+0.2;
+                tREZ  = -(d2*0.5+0.2);
+                // Pernas marcam o ritmo
+                tLHX  = d1*0.35;
+                tRHX  = -d2*0.35;
+                tLKX  = Math.max(0, d1)*0.7;
+                tRKX  = Math.max(0, d2)*0.7;
+                tMS   = 1.15;
             }
             else if(FL_anim==='jump'){
                 const rising = velocity.y > 0;
@@ -2144,24 +2184,42 @@
             createMovingPlatform(293, 1.6, -95,  9, 9, 0x9a8070, 'z', 6, 0.32, 0.50);
             createMovingPlatform(313, 1.6, -95,  9, 9, 0x9a8070, 'z', 6, 0.32, 0.25);
 
-            // Altar final — plataforma elevada
-            createPlatform(333, -12.0001, -95, 18, 46, 18, COLORS.sandDark, 4);  // Topo: Y=11
+            // Altar final — plataforma elevada (alargada em Z para facilitar acesso)
+            // Escada sobe de X≈314 até X≈340; altar começa em X=350 (centro X=361)
+            createPlatform(350, -12.0001, -95, 22, 46, 24, COLORS.sandDark, 4);  // Topo: Y=11
 
-            // Escada de acesso ao altar
-            createPlatform(324, -14, -95, 6, 42, 10, COLORS.rock);
-            createPlatform(329, -13, -95, 5, 44, 10, COLORS.rock);
+            // --- Escada de acesso ao altar em XY (antes do portão) ---
+            // Base sólida da escada — chão firme para o jogador pousar (vindo da câmara 3)
+            createPlatform(324, -18.0001, -95, 8, 34, 16, COLORS.rock);          // Topo: Y=-1  (base)
+            // Degrau 1: Y=2
+            createPlatform(332, -16.0002, -95, 6, 38, 14, COLORS.sandDark);      // Topo: Y=2
+            // Degrau 2: Y=2
+            createPlatform(336, -16.0002, -95, 6, 44, 14, COLORS.sandDark);      // Topo: Y=2
+            
 
-            // Portão 2 — Estrutura melhorada com arco e pilares sólidos
-            // Pilares laterais espessos
-            createWall(323.5, 13, -101.0001, 5, 32, 5, COLORS.rock);
-            createWall(323.5, 13, -89.0001,  5, 32, 5, COLORS.rock);
-            // Viga superior do arco
-            createWall(323.5, 22, -95, 5, 4, 18, COLORS.sandDark);
+            // ==========================================
+            // Portão 2 — Estrutura com arco e pilares sólidos (Corrigido contra Z-Fighting)
+            // ==========================================
+
+            // Pilares laterais espessos (Eixo Z original: -102.0001 e -88.0001)
+            // Mantemos a base estrutural mas alinhamos os eixos perfeitamente
+            createWall(343.5, 13, -102.0, 5, 32, 5, COLORS.rock);
+            createWall(343.5, 13, -88.0, 5, 32, 5, COLORS.rock);
+
             // Ornamentos dos pilares (topo)
-            createWall(323.5, 25, -101, 6, 3, 6, COLORS.rock);
-            createWall(323.5, 25, -89,  6, 3, 6, COLORS.rock);
+            // Ajustados em tamanho (7.02) e altura para envolver o pilar sem sobreposição de faces horizontais e verticais
+            createWall(343.5, 25.6, -102.0, 7.02, 3, 7.02, COLORS.rock);
+            createWall(343.5, 25.6, -88.0, 7.02, 3, 7.02, COLORS.rock);
+
+            // Viga superior do arco
+            // Reduzida ligeiramente no comprimento (eixo Z de 20 para 19.98) ou avançada no eixo X (343.51) 
+            // para evitar interseções perfeitas com a parte interna dos pilares
+            createWall(343.5, 22.01, -95.0, 5.02, 5, 16, COLORS.rock);
+
             // Portão em si (grade translúcida)
-            createGate(323.5, 12, -95, 0.4, 10, 18, "key_2");
+            // Posicionado ligeiramente recuado no eixo X (343.5 -> 343.4) e com largura (Z) de 19.9 
+            // para que as extremidades entrem nos pilares sem colidir com as faces externas
+            createGate(343.4, 12, -95.0, 0.4, 12, 18.9, "key_2");
 
             // ==========================================
             // CAMINHO PARA A CHAVE 2 — antes do portão
@@ -2198,39 +2256,40 @@
 
             createInvisibleBarrier(280, 0,  -70, 400, 70, 2);
 
-            spawnCoin(333, 11.5, -90,  20);
-            spawnCoin(333, 11.5, -95,  20);
-            spawnCoin(333, 11.5, -100, 20);
-            createDecoration(328, 11, -92, 'kelp');
-            createDecoration(338, 11, -98, 'coralPink');
-            createDecoration(333, 11, -88, 'coralYellow');
+            spawnCoin(350, 11.5, -90,  20);
+            spawnCoin(350, 11.5, -95,  20);
+            spawnCoin(350, 11.5, -100, 20);
+            createDecoration(345, 11, -92, 'kelp');
+            createDecoration(355, 11, -98, 'coralPink');
+            createDecoration(350, 11, -88, 'coralYellow');
 
             // ==========================================
             // ZONA 7 — SAÍDA: O CARROSSEL VERTICAL
-            // O jogador sai do altar (X=333, Z=-95, Y=11), atravessa uma
-            // plataforma de ligação e salta para o carrossel centrado em X=365, Z=-95.
+            // O jogador sai do altar (X=350, Z=-95, Y=11), atravessa uma
+            // plataforma de ligação e salta para o carrossel centrado em X=380, Z=-95.
             // As plataformas orbitam em YZ levando até à grande plataforma de saída
-            // em X=400, Z=-95 — completamente separada do puzzle da chave.
+            // em X=415, Z=-95 — completamente separada do puzzle da chave.
             // ==========================================
 
-            // Plataforma de ligação entre altar e carrossel
-            createPlatform(350, -12.0001, -95, 12, 46, 10, COLORS.rock); // Topo: Y=11
-            spawnCoin(350, 11.5, -95, 10);
+            // Plataforma de ligação entre altar e carrossel — checkpoint aqui
+            createPlatform(365, -12.001, -95, 14, 46, 14, COLORS.rock); // Topo: Y=11
+            createCheckpoint(365, 13, -95); // Checkpoint 3
+            spawnCoin(365, 11.5, -95, 10);
 
-            // Carrossel vertical em YZ — centro X=365, Z=-95
-            createOrbitPlatform(365, 8, -95, 10, 8, 0xa08060, 14, 0.09, 0.00);
-            createOrbitPlatform(365, 8, -95, 10, 8, 0xa08060, 14, 0.09, 0.33);
-            createOrbitPlatform(365, 8, -95, 10, 8, 0xa08060, 14, 0.09, 0.66);
+            // Carrossel vertical em YZ — centro X=380, Z=-95
+            createOrbitPlatform(380, 8, -95, 10, 8, 0xa08060, 14, 0.09, 0.00);
+            createOrbitPlatform(380, 8, -95, 10, 8, 0xa08060, 14, 0.09, 0.33);
+            createOrbitPlatform(380, 8, -95, 10, 8, 0xa08060, 14, 0.09, 0.66);
 
-            // Plataforma de saída — grande, à frente do carrossel em X=400
-            createPlatform(400, -12.0001, -95, 30, 46, 30, COLORS.sandDark, 4); // Topo: Y=11
-            createDecoration(394, 11, -89, 'kelp');
-            createDecoration(406, 11, -101, 'coralYellow');
-            createDecoration(394, 11, -101, 'coralPink');
-            createDecoration(406, 11, -89, 'kelp');
-            spawnCoin(400, 11.5, -95, 20);
-            spawnCoin(395, 11.5, -95, 10);
-            spawnCoin(405, 11.5, -95, 10);
+            // Plataforma de saída — grande, à frente do carrossel em X=415
+            createPlatform(415, -12.0001, -95, 30, 46, 30, COLORS.sandDark, 4); // Topo: Y=11
+            createDecoration(409, 11, -89, 'kelp');
+            createDecoration(421, 11, -101, 'coralYellow');
+            createDecoration(409, 11, -101, 'coralPink');
+            createDecoration(421, 11, -89, 'kelp');
+            spawnCoin(415, 11.5, -95, 20);
+            spawnCoin(410, 11.5, -95, 10);
+            spawnCoin(420, 11.5, -95, 10);
         }
 
         // Helpers de Construção Ajustados
@@ -2448,23 +2507,64 @@
         // Partículas de fumaça ciano para checkpoints
         const smokeParticles = [];
 
+        // Textura de fumaça: gradiente radial suave com variações para parecer puff luminoso
+        function createSmokeTexture() {
+            const size = 128;
+            const canvas = document.createElement('canvas');
+            canvas.width = size; canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            const cx = size / 2, cy = size / 2;
+
+            // Gradiente radial base: branco brilhante no centro, ciano claro, transparente nas bordas
+            const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, size * 0.5);
+            grad.addColorStop(0.0,  'rgba(255, 255, 255, 1.0)');   // núcleo branco quente
+            grad.addColorStop(0.18, 'rgba(200, 255, 255, 0.92)');  // branco azulado
+            grad.addColorStop(0.38, 'rgba(0, 229, 255, 0.65)');    // ciano luminoso
+            grad.addColorStop(0.60, 'rgba(0, 180, 220, 0.28)');    // ciano escurecendo
+            grad.addColorStop(0.80, 'rgba(0, 120, 180, 0.08)');    // quase transparente
+            grad.addColorStop(1.0,  'rgba(0, 80, 140, 0.0)');      // totalmente transparente
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, size, size);
+
+            // Manchas suaves irregulares para quebrar o círculo perfeito e parecer fumaça
+            ctx.globalCompositeOperation = 'source-atop';
+            for (let i = 0; i < 6; i++) {
+                const bx = cx + (Math.random() - 0.5) * size * 0.35;
+                const by = cy + (Math.random() - 0.5) * size * 0.35;
+                const r  = size * (0.08 + Math.random() * 0.14);
+                const g2 = ctx.createRadialGradient(bx, by, 0, bx, by, r);
+                g2.addColorStop(0,   'rgba(180, 255, 255, 0.22)');
+                g2.addColorStop(1,   'rgba(0,   200, 255, 0.0)');
+                ctx.fillStyle = g2;
+                ctx.beginPath();
+                ctx.arc(bx, by, r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalCompositeOperation = 'source-over';
+
+            return new THREE.CanvasTexture(canvas);
+        }
+        const _smokeTexture = createSmokeTexture();
+
         function spawnCheckpointSmoke(x, y, z) {
             const count = 22;
             for (let i = 0; i < count; i++) {
-                const size = 0.18 + Math.random() * 0.32;
-                // Usa geometria esférica suave e grande para simular fumaça (não quadradinhos)
-                const geo = new THREE.SphereGeometry(size, 7, 7);
-                const mat = new THREE.MeshBasicMaterial({
-                    color: 0x00e5ff,
+                const size = 0.55 + Math.random() * 0.9;
+                // Sprite billboard com textura de puff luminoso — parece fumaça emitindo luz
+                const mat = new THREE.SpriteMaterial({
+                    map: _smokeTexture,
                     transparent: true,
-                    opacity: 0.55 + Math.random() * 0.3,
+                    opacity: 0.75 + Math.random() * 0.2,
                     depthWrite: false,
+                    blending: THREE.AdditiveBlending,
+                    color: new THREE.Color().setHSL(0.52 + Math.random() * 0.06, 1.0, 0.75 + Math.random() * 0.2),
                 });
-                const mesh = new THREE.Mesh(geo, mat);
-                mesh.position.set(x, y, z);
+                const sprite = new THREE.Sprite(mat);
+                sprite.scale.setScalar(size);
+                sprite.position.set(x, y, z);
                 const angle = Math.random() * Math.PI * 2;
                 const upBias = 2.5 + Math.random() * 4.0;
-                mesh.userData = {
+                sprite.userData = {
                     vel: new THREE.Vector3(
                         Math.cos(angle) * (0.4 + Math.random() * 1.2),
                         upBias,
@@ -2473,9 +2573,10 @@
                     life: 1.0,
                     isSmoke: true,
                     drag: 0.88 + Math.random() * 0.08,
+                    baseSize: size,
                 };
-                scene.add(mesh);
-                smokeParticles.push(mesh);
+                scene.add(sprite);
+                smokeParticles.push(sprite);
             }
         }
 
@@ -2491,7 +2592,8 @@
                 p.userData.vel.multiplyScalar(p.userData.drag);
                 p.position.addScaledVector(p.userData.vel, delta);
                 // Expand e desvanece
-                const s = 1.0 + (1.0 - p.userData.life) * 2.2;
+                const baseSize = p.userData.baseSize || 1.0;
+                const s = baseSize * (1.0 + (1.0 - p.userData.life) * 2.2);
                 p.scale.setScalar(s);
                 p.material.opacity = p.userData.life * 0.55;
             }
@@ -2554,20 +2656,22 @@
                     if (cp.userData.smokeAccum > 0.08) {
                         cp.userData.smokeAccum = 0;
                         // Mini puff único
-                        const size = 0.10 + Math.random() * 0.18;
-                        const geo2 = new THREE.SphereGeometry(size, 6, 6);
-                        const mat2 = new THREE.MeshBasicMaterial({
-                            color: 0x00e5ff,
+                        const size = 0.35 + Math.random() * 0.55;
+                        const mat2 = new THREE.SpriteMaterial({
+                            map: _smokeTexture,
                             transparent: true,
-                            opacity: 0.45,
+                            opacity: 0.55,
                             depthWrite: false,
+                            blending: THREE.AdditiveBlending,
+                            color: new THREE.Color().setHSL(0.52 + Math.random() * 0.06, 1.0, 0.8),
                         });
-                        const puff = new THREE.Mesh(geo2, mat2);
+                        const puff = new THREE.Sprite(mat2);
+                        puff.scale.setScalar(size);
                         puff.position.copy(cp.position);
                         const a = Math.random() * Math.PI * 2;
                         puff.userData = {
                             vel: new THREE.Vector3(Math.cos(a) * 0.3, 1.2 + Math.random() * 1.5, Math.sin(a) * 0.3),
-                            life: 1.0, drag: 0.90, isSmoke: true,
+                            life: 1.0, drag: 0.90, isSmoke: true, baseSize: size,
                         };
                         scene.add(puff);
                         smokeParticles.push(puff);
@@ -2582,6 +2686,10 @@
                         cp.userData.activated = true;
                         checkpointPos.copy(cp.userData.spawnPos);
                         showNotification("✦ Checkpoint!");
+                        // Som de checkpoint (efeito sonoro — não interrompe a música)
+                        const _cpSfx = new Audio('checkpoint.mp3');
+                        _cpSfx.volume = 0.8;
+                        _cpSfx.play().catch(() => {});
                         // Explosão de fumaça ao ativar
                         spawnCheckpointSmoke(cp.position.x, cp.position.y, cp.position.z);
                         cp.children[1].intensity = 4;
@@ -2836,6 +2944,8 @@
             }
             if (currentState === GAME_STATE.PLAYING) {
                 keysPressed[event.code] = true;
+                lastInputTime = performance.now() / 1000;
+                isAFK = false;
                 
                 // Salto e Duplo Salto
                 if (event.code === 'Space') {
@@ -2867,6 +2977,8 @@
                 currentState = GAME_STATE.PLAYING;
                 document.getElementById('pause-menu').style.display = 'none';
                 clock.getDelta(); // Reseta o delta para evitar saltos na física após retirar a pausa
+                lastInputTime = performance.now() / 1000;
+                isAFK = false;
             }
         }
 
@@ -2877,6 +2989,8 @@
             coins = 0;
             keys = 0;
             checkpointPos.set(0, 5, 0);
+            lastInputTime = performance.now() / 1000;
+            isAFK = false;
             updateHUD();
             
             // Remove e recarrega coletáveis e portões existentes

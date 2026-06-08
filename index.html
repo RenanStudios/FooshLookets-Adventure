@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <title>FooshLookets Adventure</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
@@ -935,16 +937,17 @@
             display: none;
             align-items: center;
             justify-content: center;
-            padding: 60px;
+            padding: clamp(16px, 4vw, 60px);
             box-sizing: border-box;
         }
         #copyright-screen p {
             color: #fff;
             font-family: Impact, 'Arial Black', sans-serif;
-            font-size: clamp(16px, 2.4vw, 26px);
+            font-size: clamp(11px, 2.4vw, 26px);
             text-align: center;
-            line-height: 1.8;
+            line-height: 1.7;
             max-width: 700px;
+            width: 100%;
         }
         @keyframes ybox-tile-pop {
             0%   { transform: scale(1); }
@@ -969,9 +972,272 @@
             transition: opacity 0.3s;
             z-index: 50;
         }
+
+        /* ===== AVISO DE RETRATO (mobile) ===== */
+        #portrait-warning {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: #000;
+            color: #fff;
+            z-index: 99999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            text-align: center;
+            padding: 30px;
+            box-sizing: border-box;
+        }
+        #portrait-warning i {
+            font-size: 60px;
+            animation: rotateHint 1.5s ease-in-out infinite alternate;
+        }
+        #portrait-warning p {
+            font-family: 'Fredoka One', cursive;
+            font-size: clamp(18px, 5vw, 28px);
+            line-height: 1.5;
+        }
+        @keyframes rotateHint {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(90deg); }
+        }
+
+        /* ===== CONTROLES MOBILE ===== */
+        #mobile-controls {
+            display: none;
+            position: fixed;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 500;
+            touch-action: none;
+        }
+
+        /* Zona do joystick — esquerda */
+        #joystick-zone {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 160px;
+            height: 160px;
+            pointer-events: all;
+            touch-action: none;
+        }
+        #joystick-base {
+            position: absolute;
+            width: 130px;
+            height: 130px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.12);
+            border: 3px solid rgba(255,255,255,0.35);
+            box-sizing: border-box;
+            display: none;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        #joystick-knob {
+            position: absolute;
+            width: 54px;
+            height: 54px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.55);
+            border: 3px solid rgba(255,255,255,0.9);
+            box-sizing: border-box;
+            display: none;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            transition: none;
+        }
+
+        /* Botão de pulo — direita */
+        #btn-jump {
+            position: absolute;
+            bottom: 35px;
+            right: 35px;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(79, 172, 254, 0.55);
+            border: 4px solid rgba(255,255,255,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Fredoka One', cursive;
+            font-size: 28px;
+            color: #fff;
+            text-shadow: 1px 1px 3px #000;
+            pointer-events: all;
+            touch-action: none;
+            user-select: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            transition: background 0.1s, transform 0.1s;
+        }
+        #btn-jump:active, #btn-jump.pressed {
+            background: rgba(79, 172, 254, 0.85);
+            transform: scale(0.93);
+        }
+
+        /* Botão de pausa mobile */
+        #btn-pause-mobile {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            width: 46px;
+            height: 46px;
+            border-radius: 12px;
+            background: rgba(0,0,0,0.45);
+            border: 2px solid rgba(255,255,255,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: #fff;
+            pointer-events: all;
+            touch-action: none;
+            z-index: 501;
+        }
+
+        /* ===== MENUS RESPONSIVOS (mobile landscape) ===== */
+        @media (max-width: 900px) and (orientation: landscape) {
+            /* HUD */
+            #hud {
+                top: 10px;
+                left: 10px;
+                gap: 8px;
+            }
+            .portrait {
+                width: 48px;
+                height: 48px;
+                border-width: 2px;
+            }
+            .fl-portrait { width: 28px; height: 28px; }
+            .stat-box {
+                font-size: 14px;
+                padding: 3px 10px;
+                gap: 6px;
+            }
+            .coin-icon { font-size: 16px; }
+            .key-icon  { font-size: 14px; }
+
+            /* YBox 720 */
+            .ybox-nav {
+                gap: 16px;
+                padding: 10px 20px 0;
+                font-size: 14px;
+            }
+            .ybox-topbar {
+                padding: 8px 16px 0;
+            }
+            .ybox-content {
+                padding: 8px 16px;
+                gap: 8px;
+            }
+            .ybox-tiles {
+                width: 120px;
+            }
+            .ybox-tile {
+                width: 116px;
+            }
+            .ybox-tile-game {
+                height: 88px;
+            }
+            .tile-fl {
+                width: 44px;
+                height: 44px;
+            }
+            .ybox-tile-sm {
+                height: 56px;
+                font-size: 11px;
+            }
+            .ybox-tile-sm .tile-icon { font-size: 18px; }
+            .ybox-detail {
+                padding: 10px 16px;
+                gap: 8px;
+            }
+            .ybox-live-logo svg {
+                width: 90px;
+                height: 108px;
+            }
+            .ybox-live-desc {
+                font-size: 11px;
+                max-width: 220px;
+            }
+            .ybox-right-tiles {
+                width: 80px;
+                gap: 4px;
+            }
+            .ybox-tile-right {
+                height: 56px;
+                font-size: 10px;
+            }
+            .ybox-tile-right .tile-icon { font-size: 16px; }
+            .ybox-bottombar {
+                padding: 6px 20px 8px;
+                gap: 14px;
+                font-size: 12px;
+            }
+            .ybox-user { font-size: 12px; }
+            .ybox-avatar { width: 26px; height: 26px; font-size: 13px; }
+
+            /* Tela de Título */
+            .title-chars-area {
+                width: min(340px, 55vw);
+                height: min(170px, 28vw);
+                transform: translate(-50%, -130%);
+            }
+            .title-fl-main  { width: min(100px, 16vw); height: min(100px, 16vw); }
+            .title-fl-blue  { width: min(68px, 11vw);  height: min(68px, 11vw);  transform: translateX(-195%) rotate(-18deg); }
+            .title-fl-green { width: min(68px, 11vw);  height: min(68px, 11vw);  transform: translateX(95%)  rotate(18deg); }
+            .title-fl-yellow { width: min(52px, 8.5vw); height: min(52px, 8.5vw); bottom: 55px; }
+            .title-logo .word-foosh    { font-size: clamp(28px, 7vw, 54px); }
+            .title-logo .word-lookets  { font-size: clamp(20px, 5vw, 38px); }
+            .title-logo .word-adventure{ font-size: clamp(14px, 3.5vw, 26px); }
+            .title-press-start         { font-size: clamp(10px, 2vw, 16px); bottom: 6%; }
+
+            /* Menu de Pausa */
+            .menu-content {
+                padding: 18px 28px;
+            }
+            #pause-menu h1 {
+                font-size: clamp(22px, 4vw, 36px);
+                margin-bottom: 12px;
+            }
+            .btn {
+                padding: 10px 20px;
+                font-size: clamp(14px, 2.5vw, 18px);
+                margin: 5px;
+            }
+            #instructions {
+                font-size: 12px;
+                margin-top: 10px;
+            }
+        }
+
+        @media (max-width: 600px) and (orientation: landscape) {
+            .ybox-right-tiles { display: none; }
+            .ybox-live-desc { display: none; }
+            .title-chars-area { display: none; }
+        }
     </style>
 </head>
 <body>
+
+    <!-- ===== AVISO DE RETRATO (mobile) ===== -->
+    <div id="portrait-warning">
+        <i class="fa-solid fa-mobile-screen-button"></i>
+        <p>Por favor, rode o dispositivo<br>para o modo <strong>paisagem</strong> para jogar.</p>
+    </div>
+
+    <!-- ===== CONTROLES MOBILE ===== -->
+    <div id="mobile-controls">
+        <div id="joystick-zone">
+            <div id="joystick-base"></div>
+            <div id="joystick-knob"></div>
+        </div>
+        <div id="btn-jump">↑</div>
+        <div id="btn-pause-mobile"><i class="fa-solid fa-pause"></i></div>
+    </div>
 
     <!-- ===== YBOX 720 MENU ===== -->
     <div id="ybox-menu">
@@ -2973,9 +3239,13 @@
             if (currentState === GAME_STATE.PLAYING) {
                 currentState = GAME_STATE.PAUSED;
                 document.getElementById('pause-menu').style.display = 'flex';
+                const mc = document.getElementById('mobile-controls');
+                if (mc) mc.style.visibility = 'hidden';
             } else {
                 currentState = GAME_STATE.PLAYING;
                 document.getElementById('pause-menu').style.display = 'none';
+                const mc = document.getElementById('mobile-controls');
+                if (mc) mc.style.visibility = 'visible';
                 clock.getDelta(); // Reseta o delta para evitar saltos na física após retirar a pausa
                 lastInputTime = performance.now() / 1000;
                 isAFK = false;
@@ -3586,6 +3856,7 @@
                     _gameStarted = true;
                     _music.play('level1.mp3'); // música do jogo
                     init();
+                    if (typeof window._showMobileControls === 'function') window._showMobileControls();
                 }
             });
         }
@@ -3594,6 +3865,208 @@
             document.removeEventListener('keydown', titleKey);
         });
         // ===== FIM TELA DE TÍTULO =====
+
+        // ===== SUPORTE MOBILE =====
+        (function() {
+            const isMobile = /Mobi|Android|iPhone|iPad|iPod|Touch/i.test(navigator.userAgent) || ('ontouchstart' in window);
+            if (!isMobile) return;
+
+            // --- Forçar modo paisagem ---
+            function tryLockLandscape() {
+                const so = screen.orientation || screen.msOrientation;
+                if (so && so.lock) {
+                    so.lock('landscape').catch(() => {});
+                }
+            }
+            tryLockLandscape();
+
+            const portraitWarn = document.getElementById('portrait-warning');
+            function checkOrientation() {
+                const isPortrait = window.innerHeight > window.innerWidth;
+                portraitWarn.style.display = isPortrait ? 'flex' : 'none';
+                if (isPortrait) tryLockLandscape();
+            }
+            window.addEventListener('resize', checkOrientation);
+            window.addEventListener('orientationchange', () => setTimeout(checkOrientation, 150));
+            checkOrientation();
+
+            // --- Controles mobile: mostrar só quando o jogo iniciar ---
+            // (activado em showMobileControls(), chamado após init())
+            const mobileControls = document.getElementById('mobile-controls');
+
+            // --- Joystick dinâmico ---
+            const jZone  = document.getElementById('joystick-zone');
+            const jBase  = document.getElementById('joystick-base');
+            const jKnob  = document.getElementById('joystick-knob');
+
+            const JRADIUS = 65; // raio máximo de movimento do knob
+            let jActive = false;
+            let jTouchId = null;
+            let jOriginX = 0, jOriginY = 0;
+            let jDx = 0, jDz = 0;
+
+            function jStart(cx, cy, touchId) {
+                jActive = true;
+                jTouchId = touchId;
+                // Origem relativa à zona do joystick
+                const rect = jZone.getBoundingClientRect();
+                jOriginX = cx - rect.left;
+                jOriginY = cy - rect.top;
+
+                jBase.style.left  = jOriginX + 'px';
+                jBase.style.top   = jOriginY + 'px';
+                jBase.style.display = 'block';
+                jKnob.style.left  = jOriginX + 'px';
+                jKnob.style.top   = jOriginY + 'px';
+                jKnob.style.display = 'block';
+            }
+
+            function jMove(cx, cy) {
+                if (!jActive) return;
+                const rect = jZone.getBoundingClientRect();
+                const dx = (cx - rect.left) - jOriginX;
+                const dy = (cy - rect.top)  - jOriginY;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                const clampDist = Math.min(dist, JRADIUS);
+                const angle = Math.atan2(dy, dx);
+                const knobX = jOriginX + Math.cos(angle) * clampDist;
+                const knobY = jOriginY + Math.sin(angle) * clampDist;
+                jKnob.style.left = knobX + 'px';
+                jKnob.style.top  = knobY + 'px';
+
+                const norm = dist > 8 ? clampDist / JRADIUS : 0;
+                jDx = norm > 0 ? Math.cos(angle) * norm : 0;
+                jDz = norm > 0 ? Math.sin(angle) * norm : 0;
+
+                // Injeta nos keysPressed (threshold 0.2)
+                keysPressed['KeyW'] = jDz < -0.2;
+                keysPressed['KeyS'] = jDz >  0.2;
+                keysPressed['KeyA'] = jDx < -0.2;
+                keysPressed['KeyD'] = jDx >  0.2;
+            }
+
+            function jEnd() {
+                jActive = false;
+                jTouchId = null;
+                jDx = 0; jDz = 0;
+                jBase.style.display = 'none';
+                jKnob.style.display = 'none';
+                keysPressed['KeyW'] = false;
+                keysPressed['KeyS'] = false;
+                keysPressed['KeyA'] = false;
+                keysPressed['KeyD'] = false;
+            }
+
+            jZone.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                const t = e.changedTouches[0];
+                jStart(t.clientX, t.clientY, t.identifier);
+            }, { passive: false });
+
+            jZone.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+                for (const t of e.changedTouches) {
+                    if (t.identifier === jTouchId) {
+                        jMove(t.clientX, t.clientY);
+                    }
+                }
+            }, { passive: false });
+
+            jZone.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                for (const t of e.changedTouches) {
+                    if (t.identifier === jTouchId) jEnd();
+                }
+            }, { passive: false });
+
+            jZone.addEventListener('touchcancel', function(e) {
+                e.preventDefault();
+                jEnd();
+            }, { passive: false });
+
+            // --- Botão de Pulo ---
+            const btnJump = document.getElementById('btn-jump');
+            let jumpTouchId = null;
+
+            function doJump() {
+                if (typeof currentState === 'undefined') return;
+                if (currentState !== GAME_STATE.PLAYING) return;
+                lastInputTime = performance.now() / 1000;
+                isAFK = false;
+                if (isGrounded) {
+                    velocity.y = jumpForce;
+                    isGrounded = false;
+                    doubleJumpAvailable = true;
+                    spawnParticles(player.position.x, player.position.y, player.position.z, 0xffffff);
+                    playJumpSound();
+                } else if (doubleJumpAvailable) {
+                    velocity.y = jumpForce * 0.8;
+                    doubleJumpAvailable = false;
+                    spawnParticles(player.position.x, player.position.y - 0.5, player.position.z, 0x4facfe);
+                    playDoubleJumpSound();
+                }
+            }
+
+            btnJump.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                if (jumpTouchId !== null) return;
+                jumpTouchId = e.changedTouches[0].identifier;
+                btnJump.classList.add('pressed');
+                doJump();
+            }, { passive: false });
+
+            btnJump.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                for (const t of e.changedTouches) {
+                    if (t.identifier === jumpTouchId) {
+                        jumpTouchId = null;
+                        btnJump.classList.remove('pressed');
+                    }
+                }
+            }, { passive: false });
+
+            btnJump.addEventListener('touchcancel', function(e) {
+                e.preventDefault();
+                jumpTouchId = null;
+                btnJump.classList.remove('pressed');
+            }, { passive: false });
+
+            // --- Botão de Pausa Mobile ---
+            const btnPauseMobile = document.getElementById('btn-pause-mobile');
+            btnPauseMobile.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                if (typeof togglePause === 'function') togglePause();
+            }, { passive: false });
+
+            // --- Tela de título: toque para iniciar ---
+            document.addEventListener('touchstart', function titleTouch(e) {
+                const ts = document.getElementById('title-screen');
+                if (ts && ts.style.display !== 'none') {
+                    closeTitleScreen();
+                    document.removeEventListener('touchstart', titleTouch);
+                }
+            }, { passive: true });
+
+            // --- YBox 720: toque no tile para iniciar ---
+            const gameTile = document.getElementById('ybox-game-tile');
+            if (gameTile) {
+                gameTile.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    startYboxLaunch();
+                }, { passive: false });
+            }
+
+            // Expõe função para activar os controles quando o jogo iniciar
+            window._showMobileControls = function() {
+                mobileControls.style.display = 'block';
+            };
+
+            // Prevenir zoom por double-tap e scroll
+            document.addEventListener('touchmove', function(e) {
+                if (e.touches.length > 1) e.preventDefault();
+            }, { passive: false });
+        })();
+        // ===== FIM SUPORTE MOBILE =====
 
         // ===== SISTEMA DE SOM =====
         // Sons 100% baseados em ruído filtrado — zero componentes tonais/musicais.

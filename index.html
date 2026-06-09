@@ -3934,7 +3934,9 @@
                 const dy = (cy - rect.top)  - jOriginY;
                 const dist = Math.sqrt(dx*dx + dy*dy);
                 const clampDist = Math.min(dist, JRADIUS);
-                const angle = Math.atan2(dy, dx);
+                // Quantiza para 8 direções (múltiplos de 45°)
+                const rawAngle = Math.atan2(dy, dx);
+                const angle = dist > 8 ? Math.round(rawAngle / (Math.PI / 4)) * (Math.PI / 4) : rawAngle;
                 const knobX = jOriginX + Math.cos(angle) * clampDist;
                 const knobY = jOriginY + Math.sin(angle) * clampDist;
                 jKnob.style.left = knobX + 'px';

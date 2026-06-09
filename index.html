@@ -1222,6 +1222,439 @@
             .ybox-live-desc { display: none; }
             .title-chars-area { display: none; }
         }
+
+        /* ===== MAIN MENU & SETTINGS — BASE ===== */
+        #main-menu, #settings-screen {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: 300;
+            display: none;
+            overflow: hidden;
+            background: #6de8f8;
+        }
+        #settings-screen { z-index: 310; }
+
+        /* Fundo: raios giratórios (reutiliza keyframe raysRotate da title-screen) */
+        .mm-rays {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            animation: raysRotate 40s linear infinite;
+            transform-origin: 50% 48%;
+            scale: 4.2;
+            background: conic-gradient(
+                from 0deg at 50% 48%,
+                #7ef2ff 0deg, #b8f9ff 6deg, #7ef2ff 12deg, #b8f9ff 18deg,
+                #7ef2ff 24deg, #b8f9ff 30deg, #7ef2ff 36deg, #b8f9ff 42deg,
+                #7ef2ff 48deg, #b8f9ff 54deg, #7ef2ff 60deg, #b8f9ff 66deg,
+                #7ef2ff 72deg, #b8f9ff 78deg, #7ef2ff 84deg, #b8f9ff 90deg,
+                #7ef2ff 96deg, #b8f9ff 102deg, #7ef2ff 108deg, #b8f9ff 114deg,
+                #7ef2ff 120deg, #b8f9ff 126deg, #7ef2ff 132deg, #b8f9ff 138deg,
+                #7ef2ff 144deg, #b8f9ff 150deg, #7ef2ff 156deg, #b8f9ff 162deg,
+                #7ef2ff 168deg, #b8f9ff 174deg, #7ef2ff 180deg, #b8f9ff 186deg,
+                #7ef2ff 192deg, #b8f9ff 198deg, #7ef2ff 204deg, #b8f9ff 210deg,
+                #7ef2ff 216deg, #b8f9ff 222deg, #7ef2ff 228deg, #b8f9ff 234deg,
+                #7ef2ff 240deg, #b8f9ff 246deg, #7ef2ff 252deg, #b8f9ff 258deg,
+                #7ef2ff 264deg, #b8f9ff 270deg, #7ef2ff 276deg, #b8f9ff 282deg,
+                #7ef2ff 288deg, #b8f9ff 294deg, #7ef2ff 300deg, #b8f9ff 306deg,
+                #7ef2ff 312deg, #b8f9ff 318deg, #7ef2ff 324deg, #b8f9ff 330deg,
+                #7ef2ff 336deg, #b8f9ff 342deg, #7ef2ff 348deg, #b8f9ff 354deg,
+                #7ef2ff 360deg
+            );
+        }
+        .mm-dots {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: radial-gradient(circle, rgba(255,255,255,0.3) 1.5px, transparent 1.5px);
+            background-size: 22px 22px;
+            pointer-events: none;
+        }
+        .mm-lines {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: repeating-linear-gradient(
+                -45deg, transparent, transparent 38px,
+                rgba(0,0,0,0.06) 38px, rgba(0,0,0,0.06) 40px
+            );
+            pointer-events: none;
+        }
+
+        /* ── COLUNA ESQUERDA: banner + painel amarelo ──
+           Na referência, o painel amarelo ocupa quase toda a altura da tela
+           com uma faixa vertical estreita à esquerda (≈38% da largura).
+           O banner rosa fica acima, encostado no topo do painel. */
+        .mm-left-col {
+            position: absolute;
+            left: 0; top: 0;
+            width: 38%;
+            height: 100%;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            /* alinha verticalmente: topo com margem */
+            justify-content: flex-start;
+            padding: 5vh 0 0 4vw;
+            box-sizing: border-box;
+        }
+
+        /* Banner rosa: "MAIN MENU" / "CONFIGURAÇÕES"
+           Na referência sai da borda esquerda com a ponta apontando para a direita */
+        .mm-title-banner {
+            position: relative;
+            background: #c0275d;
+            clip-path: polygon(0 0, 91% 0, 100% 50%, 91% 100%, 0 100%);
+            padding: clamp(7px,1.2vh,14px) clamp(28px,4vw,48px) clamp(7px,1.2vh,14px) clamp(10px,2vw,20px);
+            box-shadow: 4px 4px 0 #7a0830;
+            width: 90%;
+            box-sizing: border-box;
+            /* "flutua" ligeiramente sobre o painel — z acima */
+            position: relative;
+            z-index: 2;
+            /* Sombra de borda preta embaixo para separar do painel */
+            margin-bottom: -3px;
+        }
+        .mm-title-banner::after {
+            content: '';
+            position: absolute;
+            inset: 3px 6px 3px 4px;
+            border: 2px dashed rgba(255,255,255,0.42);
+            clip-path: polygon(0 0, 90% 0, 100% 50%, 90% 100%, 0 100%);
+            pointer-events: none;
+        }
+        .mm-title-text {
+            font-family: 'Fredoka One', cursive;
+            font-size: clamp(18px, 2.8vw, 42px);
+            color: #fff;
+            letter-spacing: 2px;
+            text-shadow: 3px 3px 0 #7a0830;
+            -webkit-text-stroke: 1px rgba(0,0,0,0.2);
+            display: block;
+            white-space: nowrap;
+        }
+
+        /* Painel amarelo — ocupa quase toda a altura restante,
+           igual à referência onde a barra amarela vai do topo ao quase-fundo */
+        .mm-yellow-panel {
+            position: relative;
+            background: #f5d800;
+            border: 3px solid #222;
+            border-top: 3px solid #222;
+            box-shadow: 6px 6px 0 #222;
+            overflow: hidden;
+            /* Cresce para preencher tudo até ~92vh */
+            flex: 1;
+            max-height: 82vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 0 10% 0 8%;
+            box-sizing: border-box;
+            /* Borda esquerda preta que desce */
+            border-left: 3px solid #222;
+        }
+
+        /* Explosão de raios dentro do painel amarelo */
+        .mm-yellow-panel::before {
+            content: '';
+            position: absolute;
+            inset: -20%;
+            background: conic-gradient(
+                from 0deg at 50% 50%,
+                transparent 0deg,   rgba(255,255,255,0.26) 3deg, transparent 6deg,
+                transparent 16deg,  rgba(255,255,255,0.26) 19deg, transparent 22deg,
+                transparent 32deg,  rgba(255,255,255,0.26) 35deg, transparent 38deg,
+                transparent 48deg,  rgba(255,255,255,0.26) 51deg, transparent 54deg,
+                transparent 64deg,  rgba(255,255,255,0.26) 67deg, transparent 70deg,
+                transparent 80deg,  rgba(255,255,255,0.26) 83deg, transparent 86deg,
+                transparent 96deg,  rgba(255,255,255,0.26) 99deg, transparent 102deg,
+                transparent 112deg, rgba(255,255,255,0.26) 115deg, transparent 118deg,
+                transparent 128deg, rgba(255,255,255,0.26) 131deg, transparent 134deg,
+                transparent 144deg, rgba(255,255,255,0.26) 147deg, transparent 150deg,
+                transparent 160deg, rgba(255,255,255,0.26) 163deg, transparent 166deg,
+                transparent 176deg, rgba(255,255,255,0.26) 179deg, transparent 182deg,
+                transparent 192deg, rgba(255,255,255,0.26) 195deg, transparent 198deg,
+                transparent 208deg, rgba(255,255,255,0.26) 211deg, transparent 214deg,
+                transparent 224deg, rgba(255,255,255,0.26) 227deg, transparent 230deg,
+                transparent 240deg, rgba(255,255,255,0.26) 243deg, transparent 246deg,
+                transparent 256deg, rgba(255,255,255,0.26) 259deg, transparent 262deg,
+                transparent 272deg, rgba(255,255,255,0.26) 275deg, transparent 278deg,
+                transparent 288deg, rgba(255,255,255,0.26) 291deg, transparent 294deg,
+                transparent 304deg, rgba(255,255,255,0.26) 307deg, transparent 310deg,
+                transparent 320deg, rgba(255,255,255,0.26) 323deg, transparent 326deg,
+                transparent 336deg, rgba(255,255,255,0.26) 339deg, transparent 342deg,
+                transparent 352deg, rgba(255,255,255,0.26) 355deg, transparent 358deg
+            );
+            z-index: 0;
+            pointer-events: none;
+        }
+        /* Brilho central radial */
+        .mm-yellow-panel::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at 50% 50%, rgba(255,255,200,0.6) 0%, transparent 65%);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Item de menu — tamanho generoso como na referência */
+        .mm-item {
+            position: relative;
+            z-index: 1;
+            font-family: 'Fredoka One', cursive;
+            font-size: clamp(20px, 3.2vw, 46px);
+            color: #111;
+            letter-spacing: 1.5px;
+            padding: clamp(5px, 1vh, 14px) 0;
+            cursor: pointer;
+            transition: transform 0.1s, color 0.1s;
+            -webkit-text-stroke: 1.5px #000;
+            text-shadow: 2px 2px 0 rgba(0,0,0,0.1);
+            user-select: none;
+            white-space: nowrap;
+        }
+        .mm-item:hover, .mm-item.mm-selected {
+            color: #c0275d;
+            transform: translateX(10px) scale(1.07);
+            -webkit-text-stroke: 1.5px #7a0830;
+        }
+
+        /* ── PERSONAGENS NO LADO DIREITO ──
+           Na referência eles ocupam a metade direita e saem parcialmente
+           pela borda, com o maior na frente (direita) e menores atrás (esquerda). */
+        .mm-chars-area {
+            position: absolute;
+            right: 0; bottom: 0;
+            width: 62%;
+            height: 100%;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        /* Imagem de personagens — ancora no rodapé direito, altura total */
+        .mm-chars-img {
+            position: absolute;
+            bottom: -6%;
+            right: 0;
+            height: 100%;
+            width: auto;
+            max-width: 100%;
+            object-fit: contain;
+            object-position: bottom right;
+        }
+
+        #settings-screen .mm-chars-img {
+            bottom: 0;
+            height: 78%;
+        }
+
+        .mm-fl {
+            position: absolute;
+        }
+
+        /* Vermelho — frente, canto direito, maior.
+           Tamanho em vh para ser proporcional à altura da tela. */
+        .mm-fl-red {
+            right: 2%;
+            bottom: 0;
+            width: clamp(100px, 30vh, 280px);
+            height: clamp(100px, 30vh, 280px);
+            z-index: 4;
+        }
+        /* Verde — centro, ligeiramente menor e atrás */
+        .mm-fl-green {
+            right: 24%;
+            bottom: 1%;
+            width: clamp(85px, 24vh, 220px);
+            height: clamp(85px, 24vh, 220px);
+            z-index: 3;
+            transform: rotate(7deg);
+        }
+        /* Azul — esquerda, menor, inclinado para trás */
+        .mm-fl-blue {
+            right: 44%;
+            bottom: 3%;
+            width: clamp(70px, 20vh, 180px);
+            height: clamp(70px, 20vh, 180px);
+            z-index: 2;
+            transform: rotate(-14deg);
+        }
+        /* Amarelo — topo (atrás de todos), menor e acima */
+        .mm-fl-yellow {
+            right: 30%;
+            bottom: 42%;
+            width: clamp(55px, 14vh, 130px);
+            height: clamp(55px, 14vh, 130px);
+            z-index: 1;
+            transform: rotate(18deg);
+            opacity: 0.88;
+        }
+
+        /* ── HINTS NO RODAPÉ ── */
+        .mm-hints {
+            position: absolute;
+            bottom: 2.5%;
+            left: 4vw;
+            z-index: 10;
+            background: rgba(168, 192, 140, 0.9);
+            border: 3px solid #333;
+            padding: 6px 16px;
+            box-shadow: 3px 3px 0 #333;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .mm-hint-row {
+            font-family: 'Fredoka One', cursive;
+            font-size: clamp(11px, 1.3vw, 16px);
+            color: #222;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+        .mm-hint-key {
+            background: #4caf50;
+            color: #fff;
+            border: 2px solid #222;
+            border-radius: 50%;
+            width: 18px; height: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        .mm-hint-key.red { background: #e53935; }
+        .mm-hint-key.yellow { background: #e0a800; }
+
+        /* ===== TELA DE CONFIGURAÇÕES — itens extras ===== */
+        .settings-row {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: clamp(3px, 0.7vh, 10px) 0;
+        }
+        .settings-label {
+            font-family: 'Fredoka One', cursive;
+            font-size: clamp(14px, 2vw, 26px);
+            color: #111;
+            letter-spacing: 1px;
+            min-width: clamp(95px, 13vw, 170px);
+            -webkit-text-stroke: 0.5px #000;
+            white-space: nowrap;
+        }
+        .settings-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: clamp(80px, 13vw, 160px);
+            height: 10px;
+            border-radius: 6px;
+            background: linear-gradient(to right, #c0275d, #f5a0c0);
+            outline: none;
+            border: 2px solid #333;
+            cursor: pointer;
+        }
+        .settings-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px; height: 22px;
+            border-radius: 50%;
+            background: #fff;
+            border: 3px solid #c0275d;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            cursor: pointer;
+        }
+        .settings-slider::-moz-range-thumb {
+            width: 22px; height: 22px;
+            border-radius: 50%;
+            background: #fff;
+            border: 3px solid #c0275d;
+            cursor: pointer;
+        }
+        .settings-select {
+            font-family: 'Fredoka One', cursive;
+            font-size: clamp(12px, 1.6vw, 20px);
+            background: #fff;
+            border: 3px solid #333;
+            border-radius: 8px;
+            padding: 3px 8px;
+            color: #222;
+            cursor: pointer;
+            outline: none;
+            box-shadow: 2px 2px 0 #333;
+        }
+        .settings-divider {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            height: 2px;
+            background: rgba(0,0,0,0.13);
+            margin: 2px 0 5px;
+        }
+        .mm-back-btn {
+            position: relative;
+            z-index: 1;
+            margin-top: clamp(6px, 1.2vh, 16px);
+            font-family: 'Fredoka One', cursive;
+            font-size: clamp(13px, 1.8vw, 24px);
+            color: #222;
+            cursor: pointer;
+            padding: 4px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: color 0.12s, transform 0.12s;
+            user-select: none;
+        }
+        .mm-back-btn:hover { color: #c0275d; transform: translateX(-5px); }
+
+        /* ── RESPONSIVO ── */
+
+        /* Tablet / phone landscape */
+        @media (max-width: 900px) and (orientation: landscape) {
+            .mm-left-col { width: 45%; padding-left: 3vw; padding-top: 4vh; }
+            .mm-chars-area { width: 55%; }
+            .mm-item { font-size: clamp(16px, 3.5vw, 32px); padding: clamp(4px,0.8vh,10px) 0; }
+            .mm-title-text { font-size: clamp(16px, 3.2vw, 28px); }
+            .mm-fl-red   { width: clamp(80px,24vh,200px); height: clamp(80px,24vh,200px); }
+            .mm-fl-green { width: clamp(66px,19vh,160px); height: clamp(66px,19vh,160px); }
+            .mm-fl-blue  { width: clamp(55px,16vh,135px); height: clamp(55px,16vh,135px); }
+            .mm-fl-yellow{ width: clamp(42px,11vh,100px); height: clamp(42px,11vh,100px); }
+            .settings-label { min-width: clamp(75px, 12vw, 130px); font-size: clamp(12px,1.8vw,20px); }
+            .settings-slider { width: clamp(65px,11vw,130px); }
+        }
+
+        /* Phone landscape pequeno */
+        @media (max-width: 600px) and (orientation: landscape) {
+            .mm-left-col { width: 52%; }
+            .mm-chars-area { width: 48%; }
+            .mm-fl-yellow { display: none; }
+            .mm-hints { padding: 4px 10px; bottom: 1%; }
+            .mm-item { font-size: clamp(13px, 4vw, 24px); }
+        }
+
+        /* Phone portrait */
+        @media (max-width: 600px) and (orientation: portrait) {
+            .mm-left-col {
+                width: 70%;
+                padding-top: 8vw;
+                padding-left: 5vw;
+            }
+            .mm-chars-area {
+                width: 45%;
+                /* Na portrait os personagens ficam no canto inferior direito */
+            }
+            .mm-fl-yellow { display: none; }
+            .mm-fl-blue   { display: none; }
+            .mm-fl-green  { right: 2%; width: clamp(80px,28vw,160px); height: clamp(80px,28vw,160px); }
+            .mm-fl-red    { right: 0%;  bottom: 0; width: clamp(90px,32vw,180px); height: clamp(90px,32vw,180px); transform: none; }
+            .mm-title-text { font-size: clamp(20px, 5.5vw, 36px); }
+            .mm-item { font-size: clamp(18px, 5.5vw, 32px); }
+            .mm-hints { font-size: clamp(10px, 3vw, 14px); }
+        }
+        /* ===== FIM MAIN MENU ===== */
     </style>
 </head>
 <body>
@@ -1499,6 +1932,96 @@
         <div class="title-press-start">PRESSIONE QUALQUER TECLA PARA JOGAR</div>
     </div>
     <!-- ===== FIM DA TELA DE TÍTULO ===== -->
+
+    <!-- ===== MAIN MENU ===== -->
+    <div id="main-menu">
+        <div class="mm-rays"></div>
+        <div class="mm-dots"></div>
+        <div class="mm-lines"></div>
+
+        <!-- Coluna esquerda: banner + painel amarelo -->
+        <div class="mm-left-col">
+            <div class="mm-title-banner">
+                <span class="mm-title-text">MAIN MENU</span>
+            </div>
+            <div class="mm-yellow-panel">
+                <div class="mm-item" onclick="mmStartGame()">JOGAR</div>
+                <div class="mm-item" onclick="mmOpenSettings()">CONFIGURAÇÕES</div>
+            </div>
+        </div>
+
+        <!-- Personagens à direita — imagem menu.png -->
+        <div class="mm-chars-area">
+            <img src="menu.png" class="mm-chars-img" alt="personagens">
+        </div>
+
+        <!-- Hints de botão -->
+        <div class="mm-hints">
+            <div class="mm-hint-row"><span class="mm-hint-key">A</span> SELECIONAR</div>
+        </div>
+    </div>
+    <!-- ===== FIM MAIN MENU ===== -->
+
+    <!-- ===== TELA DE CONFIGURAÇÕES ===== -->
+    <div id="settings-screen">
+        <div class="mm-rays"></div>
+        <div class="mm-dots"></div>
+        <div class="mm-lines"></div>
+
+        <div class="mm-left-col">
+            <div class="mm-title-banner">
+                <span class="mm-title-text">CONFIGURAÇÕES</span>
+            </div>
+            <div class="mm-yellow-panel">
+                <!-- Resolução -->
+                <div class="settings-row">
+                    <span class="settings-label">RESOLUÇÃO</span>
+                    <select class="settings-select" id="cfg-resolution" onchange="applyResolution(this.value)">
+                        <option value="native">Nativa</option>
+                        <option value="high">Alta</option>
+                        <option value="medium" selected>Média</option>
+                        <option value="low">Baixa</option>
+                    </select>
+                </div>
+                <div class="settings-divider"></div>
+                <!-- Música -->
+                <div class="settings-row">
+                    <span class="settings-label">MÚSICA</span>
+                    <input type="range" class="settings-slider" id="cfg-music" min="0" max="100" value="60"
+                        oninput="applyMusicVolume(this.value)">
+                </div>
+                <!-- Efeitos -->
+                <div class="settings-row">
+                    <span class="settings-label">EFEITOS</span>
+                    <input type="range" class="settings-slider" id="cfg-sfx" min="0" max="100" value="80"
+                        oninput="applySfxVolume(this.value)">
+                </div>
+                <div class="settings-divider"></div>
+                <!-- Gráficos -->
+                <div class="settings-row">
+                    <span class="settings-label">GRÁFICOS</span>
+                    <select class="settings-select" id="cfg-graphics" onchange="applyGraphics(this.value)">
+                        <option value="ultra">Ultra</option>
+                        <option value="high">Alto</option>
+                        <option value="medium" selected>Médio</option>
+                        <option value="low">Baixo</option>
+                    </select>
+                </div>
+                <div class="mm-back-btn" onclick="mmCloseSettings()">◀ VOLTAR</div>
+            </div>
+        </div>
+
+        <!-- Personagem à direita — imagem options.png -->
+        <div class="mm-chars-area">
+            <img src="options.png" class="mm-chars-img" alt="personagem opções">
+        </div>
+
+        <div class="mm-hints">
+            <div class="mm-hint-row"><span class="mm-hint-key red">B</span> VOLTAR</div>
+            <div class="mm-hint-row"><span class="mm-hint-key">A</span> SELECIONAR</div>
+        </div>
+    </div>
+    <!-- ===== FIM TELA DE CONFIGURAÇÕES ===== -->
 
     <div id="hud">
         <div class="portrait">
@@ -3670,11 +4193,12 @@
         // ===== MÚSICAS =====
         const _music = {
             el: null,
+            _savedVolume: 0.6,
             play(src, loop = true) {
                 if (this.el) { this.el.pause(); this.el.src = ''; }
                 this.el = new Audio(src);
                 this.el.loop = loop;
-                this.el.volume = 0.6;
+                this.el.volume = this._savedVolume;
                 this.el.play().catch(() => {});
             },
             stop() {
@@ -3856,20 +4380,65 @@
             const ts = document.getElementById('title-screen');
             if (!ts || ts.style.display === 'none') return;
             ts.remove();
-            _music.stop(); // silêncio na tela de loading
-            showLoadingScreen(() => {
-                if (!_gameStarted) {
-                    _gameStarted = true;
-                    _music.play('level1.mp3'); // música do jogo
-                    init();
-                    if (typeof window._showMobileControls === 'function') window._showMobileControls();
-                }
-            });
+            // Mantém a música do título tocando no main menu
+            // Mostra o main menu em vez de ir direto ao loading
+            const mm = document.getElementById('main-menu');
+            if (mm) mm.style.display = 'block';
         }
         document.addEventListener('keydown', function titleKey(e) {
             closeTitleScreen();
             document.removeEventListener('keydown', titleKey);
         });
+
+        // ===== MAIN MENU — LÓGICA =====
+        function mmStartGame() {
+            const mm = document.getElementById('main-menu');
+            if (mm) mm.style.display = 'none';
+            _music.stop(); // para a música do título antes do loading
+            showLoadingScreen(() => {
+                if (!_gameStarted) {
+                    _gameStarted = true;
+                    _music.play('level1.mp3');
+                    init();
+                    if (typeof window._showMobileControls === 'function') window._showMobileControls();
+                }
+            });
+        }
+
+        function mmOpenSettings() {
+            document.getElementById('main-menu').style.display = 'none';
+            document.getElementById('settings-screen').style.display = 'block';
+        }
+
+        function mmCloseSettings() {
+            document.getElementById('settings-screen').style.display = 'none';
+            document.getElementById('main-menu').style.display = 'block';
+        }
+
+        // Configurações — pixel ratio / resolução
+        let _sfxVolume = 0.8; // acessível pelas funções de som
+        function applyResolution(val) {
+            if (!renderer) return;
+            const base = window.devicePixelRatio || 1;
+            const map = { native: base, high: Math.min(base, 1.0), medium: Math.min(base * 0.6, 1.0), low: Math.min(base * 0.35, 0.6) };
+            renderer.setPixelRatio(map[val] || map.medium);
+        }
+        function applyMusicVolume(val) {
+            const v = val / 100;
+            if (_music.el) _music.el.volume = v;
+            // Guarda para uso futuro
+            _music._savedVolume = v;
+        }
+        function applySfxVolume(val) {
+            _sfxVolume = val / 100;
+        }
+        function applyGraphics(val) {
+            if (!renderer) return;
+            const map = { ultra: 1.0, high: 0.8, medium: 0.6, low: 0.35 };
+            const base = window.devicePixelRatio || 1;
+            renderer.setPixelRatio(Math.min(base * (map[val] || 0.6), 1.2));
+        }
+        // ===== FIM MAIN MENU =====
         // ===== FIM TELA DE TÍTULO =====
 
         // ===== SUPORTE MOBILE =====

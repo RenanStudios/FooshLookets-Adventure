@@ -2175,6 +2175,10 @@
             document.getElementById('btn-resume').addEventListener('click', togglePause);
             document.getElementById('btn-restart').addEventListener('click', restartGame);
 
+            // Aplica configurações escolhidas antes do jogo iniciar
+            applyResolution(_pendingResolution);
+            applyGraphics(_pendingGraphics);
+
             // Loop de Animação
             animate();
         }
@@ -4417,7 +4421,13 @@
 
         // Configurações — pixel ratio / resolução
         let _sfxVolume = 0.8; // acessível pelas funções de som
+
+        // Guarda as configurações escolhidas antes do jogo iniciar
+        let _pendingResolution = 'medium';
+        let _pendingGraphics   = 'medium';
+
         function applyResolution(val) {
+            _pendingResolution = val;
             if (!renderer) return;
             const base = window.devicePixelRatio || 1;
             // Mapeia para valores absolutos de pixelRatio, independentemente do DPR do dispositivo
@@ -4435,6 +4445,12 @@
             _sfxVolume = val / 100;
         }
         function applyGraphics(val) {
+            _pendingGraphics = val;
+
+            // --- Partículas por spawn: controla quantidade ---
+            // Guardada numa variável global para spawnParticles usar
+            window._graphicsParticleCount = { ultra: 16, high: 10, medium: 6, low: 2 }[val] || 6;
+
             if (!renderer) return;
 
             // --- Sombras ---
@@ -4459,10 +4475,6 @@
                 scene.fog.near = near;
                 scene.fog.far  = far;
             }
-
-            // --- Partículas por spawn: controla quantidade ---
-            // Guardada numa variável global para spawnParticles usar
-            window._graphicsParticleCount = { ultra: 16, high: 10, medium: 6, low: 2 }[val] || 6;
         }
         // ===== FIM MAIN MENU =====
         // ===== FIM TELA DE TÍTULO =====

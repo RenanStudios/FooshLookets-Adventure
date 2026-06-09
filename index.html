@@ -3642,8 +3642,8 @@
         function spawnParticles(x, y, z, color) {
             const geo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
             const mat = new THREE.MeshBasicMaterial({ color: color });
-            
-            for(let i = 0; i < 8; i++) {
+            const count = window._graphicsParticleCount ?? 8;
+            for(let i = 0; i < count; i++) {
                 const mesh = new THREE.Mesh(geo, mat);
                 mesh.position.set(x, y, z);
                 mesh.userData = {
@@ -4420,8 +4420,10 @@
         function applyResolution(val) {
             if (!renderer) return;
             const base = window.devicePixelRatio || 1;
-            const map = { native: base, high: Math.min(base, 1.0), medium: Math.min(base * 0.6, 1.0), low: Math.min(base * 0.35, 0.6) };
-            renderer.setPixelRatio(map[val] || map.medium);
+            // Mapeia para valores absolutos de pixelRatio, independentemente do DPR do dispositivo
+            // Nativa = DPR real (máxima nitidez), Alta = 1.5, Média = 1.0, Baixa = 0.5
+            const map = { native: base, high: Math.min(base, 1.5), medium: 1.0, low: 0.5 };
+            renderer.setPixelRatio(map[val] ?? 1.0);
         }
         function applyMusicVolume(val) {
             const v = val / 100;
@@ -4434,9 +4436,33 @@
         }
         function applyGraphics(val) {
             if (!renderer) return;
-            const map = { ultra: 1.0, high: 0.8, medium: 0.6, low: 0.35 };
-            const base = window.devicePixelRatio || 1;
-            renderer.setPixelRatio(Math.min(base * (map[val] || 0.6), 1.2));
+
+            // --- Sombras ---
+            const shadowEnabled = (val !== 'low');
+            renderer.shadowMap.enabled = shadowEnabled;
+
+            if (dirLight) {
+                dirLight.castShadow = shadowEnabled;
+
+                // Tamanho do mapa de sombra: mais alto = sombras mais nítidas e pesadas
+                const shadowMapSizes = { ultra: 2048, high: 1024, medium: 512, low: 256 };
+                const smSize = shadowMapSizes[val] || 512;
+                dirLight.shadow.mapSize.width  = smSize;
+                dirLight.shadow.mapSize.height = smSize;
+                dirLight.shadow.map = null; // força Three.js a recriar o shadow map
+            }
+
+            // --- Névoa (distância de render) ---
+            if (scene && scene.fog) {
+                const fogSettings = { ultra: [150, 500], high: [100, 350], medium: [80, 250], low: [50, 150] };
+                const [near, far] = fogSettings[val] || [80, 250];
+                scene.fog.near = near;
+                scene.fog.far  = far;
+            }
+
+            // --- Partículas por spawn: controla quantidade ---
+            // Guardada numa variável global para spawnParticles usar
+            window._graphicsParticleCount = { ultra: 16, high: 10, medium: 6, low: 2 }[val] || 6;
         }
         // ===== FIM MAIN MENU =====
         // ===== FIM TELA DE TÍTULO =====

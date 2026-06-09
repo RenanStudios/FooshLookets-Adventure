@@ -1606,7 +1606,8 @@
             
             // Renderizador
             renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio * 0.6, 1.0));
+            const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 900;
+            renderer.setPixelRatio(isMobile ? Math.min(window.devicePixelRatio * 0.35, 0.6) : Math.min(window.devicePixelRatio * 0.6, 1.0));
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -3610,6 +3611,8 @@
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+            const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 900;
+            renderer.setPixelRatio(isMobile ? Math.min(window.devicePixelRatio * 0.35, 0.6) : Math.min(window.devicePixelRatio * 0.6, 1.0));
         }
 
         // ─── FPS tracking ───

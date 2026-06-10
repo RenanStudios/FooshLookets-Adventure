@@ -30,34 +30,36 @@
         /* HUD UI */
         #hud {
             position: absolute;
-            top: 20px;
-            left: 20px;
+            top: 16px;
+            left: 16px;
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 0px;
             pointer-events: none;
             z-index: 10;
         }
 
         .portrait {
-            width: 80px;
-            height: 80px;
+            width: clamp(52px, 7vw, 88px);
+            height: clamp(52px, 7vw, 88px);
             background: linear-gradient(160deg, #4facfe 0%, #00c8fe 60%, #0090d4 100%);
-            border: 4px solid #fff;
+            border: 3px solid #fff;
             border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4), inset 0 2px 4px rgba(255,255,255,0.3);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.55), inset 0 2px 4px rgba(255,255,255,0.3);
             position: relative;
             overflow: visible;
+            flex-shrink: 0;
+            z-index: 2;
         }
 
         /* CSS FooshLooket Portrait */
         .fl-portrait {
             position: relative;
-            width: 46px;
-            height: 46px;
+            width: clamp(28px, 3.8vw, 46px);
+            height: clamp(28px, 3.8vw, 46px);
         }
 
         /* Body — top half gray, bottom half red */
@@ -143,12 +145,69 @@
         .fl-arm.left::after  { left:  -5px; }
         .fl-arm.right::after { right: -5px; }
 
+        /* HUD panel: barra que sai do retrato */
+        .hud-panel {
+            position: relative;
+            margin-left: -12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: clamp(2px, 0.5vw, 6px);
+            background: rgba(0,0,0,0.52);
+            border: 2px solid rgba(255,255,255,0.85);
+            border-left: none;
+            border-radius: 0 18px 18px 0;
+            padding: clamp(4px, 0.8vw, 9px) clamp(10px, 1.8vw, 18px) clamp(4px, 0.8vw, 9px) clamp(14px, 2.5vw, 24px);
+            min-width: clamp(110px, 18vw, 200px);
+            box-shadow: 0 4px 14px rgba(0,0,0,0.45);
+        }
+
+        /* Linha de moedas */
+        .coin-row {
+            display: flex;
+            align-items: center;
+            gap: clamp(4px, 0.7vw, 8px);
+        }
+        .coin-icon {
+            color: #FFD700;
+            font-size: clamp(14px, 2.2vw, 26px);
+            filter: drop-shadow(1px 1px 1px #000);
+            line-height: 1;
+        }
+        .coin-count {
+            color: #fff;
+            font-size: clamp(14px, 2.2vw, 26px);
+            font-family: 'Fredoka One', cursive;
+            text-shadow: 2px 2px 3px #000;
+            min-width: 2.5em;
+        }
+
+        /* Barra de vida */
+        .health-row {
+            display: flex;
+            align-items: center;
+            gap: clamp(4px, 0.7vw, 8px);
+        }
+        .health-bar-wrap {
+            flex: 1;
+            height: clamp(7px, 1.2vw, 15px);
+            background: rgba(0,0,0,0.5);
+            border-radius: 8px;
+            border: 2px solid rgba(255,255,255,0.7);
+            overflow: hidden;
+            min-width: clamp(70px, 12vw, 140px);
+        }
+        .health-bar-fill {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 0.25s ease, background 0.4s;
+        }
+
         .stats {
             display: flex;
             flex-direction: column;
             gap: 5px;
         }
-
         .stat-box {
             background: rgba(0, 0, 0, 0.5);
             padding: 5px 15px;
@@ -162,9 +221,6 @@
             text-shadow: 1px 1px 2px black;
             box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
-
-        .coin-icon { color: #FFD700; font-size: 28px; }
-        .key-icon { color: #A8A8A8; font-size: 24px; }
 
         /* Menu de Pausa */
         #pause-menu {
@@ -1107,21 +1163,8 @@
             #hud {
                 top: 10px;
                 left: 10px;
-                gap: 8px;
-            }
-            .portrait {
-                width: 48px;
-                height: 48px;
-                border-width: 2px;
             }
             .fl-portrait { width: 28px; height: 28px; }
-            .stat-box {
-                font-size: 14px;
-                padding: 3px 10px;
-                gap: 6px;
-            }
-            .coin-icon { font-size: 16px; }
-            .key-icon  { font-size: 14px; }
 
             /* YBox 720 */
             .ybox-nav {
@@ -2035,9 +2078,16 @@
                 </div>
             </div>
         </div>
-        <div class="stats">
-            <div class="stat-box"><span class="coin-icon">🪙</span> <span id="coin-count">000</span></div>
-            <div class="stat-box"><span class="key-icon">🗝️</span> <span id="key-count">0</span></div>
+        <div class="hud-panel">
+            <div class="coin-row">
+                <span class="coin-icon">🪙</span>
+                <span class="coin-count" id="coin-count">000</span>
+            </div>
+            <div class="health-row">
+                <div class="health-bar-wrap">
+                    <div class="health-bar-fill" id="health-bar" style="width:100%;"></div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -2070,6 +2120,11 @@
         let coins = 0;
         let keys = 0;
 
+        // Sistema de vida
+        const MAX_HEALTH = 5;
+        let health = MAX_HEALTH;
+        let voidDamageCooldown = 0; // evita dano múltiplo imediato ao cair
+
         // Variáveis do Three.js
         let scene, camera, renderer, dirLight;
         let player;
@@ -2078,6 +2133,7 @@
         const collectibles = []; // Moedas e chaves
         const gates = []; // Portões interativos
         const particles = [];
+        const enemies = []; // Inimigos ByteBot
         const movingPlatforms = []; // Plataformas com movimento próprio (puzzle)
         const orbitPlatforms  = []; // Plataformas que giram em círculo
 
@@ -2191,6 +2247,10 @@
         // Estado de animação do FooshLooket
         let FL_anim = 'idle';
         let FL_jumpT = 0;
+
+        // Estado de morte
+        let FL_deathTimer = -1;     // >= 0 = morreu, conta até 4s para ressuscitar
+        let FL_isDead = false;
 
         // AFK: tempo sem input para começar a dançar
         const AFK_TIMEOUT = 30; // segundos
@@ -2349,6 +2409,47 @@
 
         function updateFooshLooketAnimation(delta, t) {
             const sp = 1 - Math.pow(0.002, delta);
+
+            // Se morreu, toca animação de morte e ignora o resto
+            if (FL_isDead) {
+                // Cai de cara no chão: roda rápido para frente (rotation.x → ~PI/2)
+                // Braços caem flácidos para os lados, pernas esticadas
+                const deadSp = 1 - Math.pow(0.001, delta);
+
+                // Inclina corpo para frente até ficar deitado (~90°)
+                FL_bodyGroup.rotation.x = FL_lerp(FL_bodyGroup.rotation.x, Math.PI * 0.52, deadSp * 1.4);
+                FL_bodyGroup.rotation.z = FL_lerp(FL_bodyGroup.rotation.z, 0, deadSp);
+
+                // Escala: squash leve ao cair
+                const targetSqY = FL_deathTimer > 3.4 ? 0.72 : 1.0;
+                FL_bodyGroup.scale.set(
+                    FL_lerp(FL_bodyGroup.scale.x, 1.18, deadSp),
+                    FL_lerp(FL_bodyGroup.scale.y, targetSqY, deadSp),
+                    FL_lerp(FL_bodyGroup.scale.z, 1.18, deadSp)
+                );
+                FL_bodyGroup.position.y = FL_lerp(FL_bodyGroup.position.y, -0.4, deadSp);
+
+                // Braços caem flácidos (pendurados para baixo)
+                FL_LA.shoulder.rotation.x = FL_lerp(FL_LA.shoulder.rotation.x, -0.1, deadSp);
+                FL_LA.shoulder.rotation.z = FL_lerp(FL_LA.shoulder.rotation.z, 1.70, deadSp);
+                FL_RA.shoulder.rotation.x = FL_lerp(FL_RA.shoulder.rotation.x, -0.1, deadSp);
+                FL_RA.shoulder.rotation.z = FL_lerp(FL_RA.shoulder.rotation.z, -1.70, deadSp);
+                FL_LA.elbow.rotation.z    = FL_lerp(FL_LA.elbow.rotation.z, 0.6, deadSp);
+                FL_RA.elbow.rotation.z    = FL_lerp(FL_RA.elbow.rotation.z, -0.6, deadSp);
+
+                // Pernas esticadas (desmaiado)
+                FL_LLeg.hip.rotation.x  = FL_lerp(FL_LLeg.hip.rotation.x, 0.05, deadSp);
+                FL_RLeg.hip.rotation.x  = FL_lerp(FL_RLeg.hip.rotation.x, 0.05, deadSp);
+                FL_LLeg.knee.rotation.x = FL_lerp(FL_LLeg.knee.rotation.x, 0.05, deadSp);
+                FL_RLeg.knee.rotation.x = FL_lerp(FL_RLeg.knee.rotation.x, 0.05, deadSp);
+
+                // Boca fechada (X)
+                FL_mouth.visible = true;
+                FL_mouthOpen.visible = false;
+                FL_mouth.rotation.z = FL_lerp(FL_mouth.rotation.z, Math.PI * 0.25, deadSp * 0.5);
+                FL_mouth.scale.setScalar(FL_lerp(FL_mouth.scale.x, 0.7, deadSp * 0.5));
+                return;
+            }
 
             const horizSpeed = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
             const isMoving = horizSpeed > 1.5;
@@ -2964,6 +3065,7 @@
             createDecoration(215, 1, -99, 'coralYellow');
 
             createPlatform(258, -17.0001, -95, 10, 36, 14, COLORS.sandDark, 4);  // Ilhota 2, Topo: Y=1
+            createCheckpoint(258, 1, -95); // Checkpoint entre plataformas Y e Z
 
             // Plataformas verticais câmara 2 — cor: areia escura
             createMovingPlatform(232, 2.5, -95, 10, 10, 0xc4a86e, 'y', 3.5, 0.30, 0.00);
@@ -3088,6 +3190,74 @@
             spawnCoin(415, 11.5, -95, 20);
             spawnCoin(410, 11.5, -95, 10);
             spawnCoin(420, 11.5, -95, 10);
+
+            // ==========================================
+            // ZONA 8: CAMINHO DO NORTE
+            // Saída da plataforma de saída (X=415, Z=-95, Topo Y=11).
+            // Avança em Z negativo (sentido norte) a partir de Z=-95.
+            // ==========================================
+
+            // Corredor de transição norte — sai da plataforma de saída em direção ao norte
+            createPlatform(415, -12.0001, -125, 20, 46, 20, COLORS.sandDark, 4); // Topo: Y=11
+            createCheckpoint(415, 13, -125); // Checkpoint 4
+
+            spawnCoin(415, 11.5, -110, 1);
+            spawnCoin(415, 11.5, -115, 1);
+            spawnCoin(415, 11.5, -120, 1);
+            createDecoration(409, 11, -121, 'kelp');
+            createDecoration(421, 11, -129, 'coralPink');
+
+            // Plataformas elevadas em degraus subindo para o norte
+            createPlatform(415, -10.0001, -148, 10, 50, 10, COLORS.rock);  // Topo: Y=15
+            createPlatform(415, -8.0001,  -162, 10, 54, 10, COLORS.rock);  // Topo: Y=19
+            createPlatform(415, -6.0001,  -176, 10, 58, 10, COLORS.rock);  // Topo: Y=23
+
+            spawnCoin(415, 15.5, -148, 10);
+            spawnCoin(415, 19.5, -162, 10);
+            spawnCoin(415, 23.5, -176, 20);
+            createDecoration(411, 15, -152, 'coralYellow');
+            createDecoration(419, 19, -158, 'kelp');
+            createDecoration(411, 23, -180, 'coralPink');
+            createDecoration(419, 23, -172, 'coralYellow');
+
+            // Grande plataforma final ao norte — ampla e elevada
+            createPlatform(415, -4.0001, -205, 40, 62, 40, COLORS.sandDark, 4); // Topo: Y=27
+            spawnCoin(405, 27.5, -195, 20);
+            spawnCoin(415, 27.5, -205, 20);
+            spawnCoin(425, 27.5, -215, 20);
+            spawnCoin(405, 27.5, -215, 10);
+            spawnCoin(425, 27.5, -195, 10);
+            createDecoration(408, 27, -198, 'kelp');
+            createDecoration(422, 27, -212, 'coralPink');
+            createDecoration(408, 27, -212, 'coralYellow');
+            createDecoration(422, 27, -198, 'kelp');
+
+            // Spawn dos inimigos ByteBot na plataforma final
+            spawnByteBot(410, 27, -200);
+            spawnByteBot(420, 27, -210);
+            spawnByteBot(415, 27, -215);
+            spawnByteBot(405, 27, -200);
+            spawnByteBot(420, 27, -198);
+
+            // Plataforma ainda mais larga à frente (norte) da plataforma grande — mesmo nível Y=27
+            createPlatform(415, -4.0001, -255, 70, 62, 60, COLORS.sandDark, 4); // Topo: Y=27
+
+            // Decorações da plataforma larga norte
+            createDecoration(385, 27, -230, 'kelp');
+            createDecoration(445, 27, -230, 'coralPink');
+            createDecoration(388, 27, -260, 'coralYellow');
+            createDecoration(442, 27, -258, 'kelp');
+            createDecoration(395, 27, -278, 'coralPink');
+            createDecoration(435, 27, -280, 'coralYellow');
+            createDecoration(415, 27, -242, 'kelp');
+            createDecoration(408, 27, -270, 'coralPink');
+            createDecoration(422, 27, -270, 'kelp');
+            createDecoration(415, 27, -282, 'coralYellow');
+            spawnCoin(400, 27.5, -245, 10);
+            spawnCoin(430, 27.5, -245, 10);
+            spawnCoin(400, 27.5, -265, 5);
+            spawnCoin(430, 27.5, -265, 5);
+            spawnCoin(415, 27.5, -275, 20);
         }
 
         // Helpers de Construção Ajustados
@@ -3746,7 +3916,7 @@
                 isAFK = false;
                 
                 // Salto e Duplo Salto
-                if (event.code === 'Space') {
+                if (event.code === 'Space' && !FL_isDead) {
                     if (isGrounded) {
                         velocity.y = jumpForce;
                         isGrounded = false;
@@ -3790,6 +3960,12 @@
             velocity.set(0,0,0);
             coins = 0;
             keys = 0;
+            health = MAX_HEALTH;
+            voidDamageCooldown = 0;
+            FL_isDead = false;
+            FL_deathTimer = -1;
+            FL_bodyGroup.rotation.x = 0;
+            FL_bodyGroup.rotation.z = 0;
             checkpointPos.set(0, 5, 0);
             lastInputTime = performance.now() / 1000;
             isAFK = false;
@@ -3798,6 +3974,10 @@
             // Remove e recarrega coletáveis e portões existentes
             collectibles.forEach(c => scene.remove(c));
             collectibles.length = 0;
+
+            // Remove inimigos ByteBot
+            enemies.forEach(e => scene.remove(e));
+            enemies.length = 0;
             
             gates.forEach(g => {
                 scene.remove(g);
@@ -3841,6 +4021,261 @@
 
             togglePause();
         }
+
+        // ===== INIMIGOS BYTEBOT =====
+
+        // Materiais partilhados para os ByteBots
+        // metalness baixo para ser visível sem environment map
+        const _bbMatMetal  = new THREE.MeshStandardMaterial({ color: 0xb0b8c8, metalness: 0.2, roughness: 0.45 });
+        const _bbMatDark   = new THREE.MeshStandardMaterial({ color: 0x444455, metalness: 0.1, roughness: 0.6  });
+        const _bbMatEyeBase= new THREE.MeshStandardMaterial({ color: 0x1a1a2e, metalness: 0.1, roughness: 0.4  });
+        const _bbMatGlow   = new THREE.MeshStandardMaterial({ color: 0xff2200, emissive: 0xff2200, emissiveIntensity: 3, toneMapped: false });
+        const _bbMatAccent = new THREE.MeshStandardMaterial({ color: 0xb0b8c8, metalness: 0.2, roughness: 0.45 });
+
+        function spawnByteBot(x, y, z) {
+            const bot = new THREE.Group();
+            bot.position.set(x, y, z);
+
+            const wallThickness = 0.15;
+            const hs = 1.0;
+            const extSettings = {
+                depth: wallThickness, bevelEnabled: true,
+                bevelSegments: 3, bevelSteps: 2, bevelSize: 0.02, bevelThickness: 0.02
+            };
+
+            // Forma da metade superior (com dentes de encaixe)
+            const topShape = new THREE.Shape();
+            topShape.moveTo(-hs, hs);
+            topShape.lineTo(-hs, -0.5);
+            topShape.lineTo(-0.5, 0.0);
+            topShape.lineTo(0, -0.5);
+            topShape.lineTo(0.5, 0.0);
+            topShape.lineTo(hs, -0.5);
+            topShape.lineTo(hs, hs);
+            topShape.lineTo(-hs, hs);
+
+            // Forma da metade inferior
+            const botShape = new THREE.Shape();
+            botShape.moveTo(-hs, -hs);
+            botShape.lineTo(hs, -hs);
+            botShape.lineTo(hs, -0.5);
+            botShape.lineTo(0.5, 0.0);
+            botShape.lineTo(0, -0.5);
+            botShape.lineTo(-0.5, 0.0);
+            botShape.lineTo(-hs, -0.5);
+            botShape.lineTo(-hs, -hs);
+
+            const topWallGeo = new THREE.ExtrudeGeometry(topShape, extSettings);
+            topWallGeo.translate(0, 0, -wallThickness / 2);
+            const botWallGeo = new THREE.ExtrudeGeometry(botShape, extSettings);
+            botWallGeo.translate(0, 0, -wallThickness / 2);
+
+            function makeHalf(wallGeo, isTopHalf) {
+                const grp = new THREE.Group();
+                const off = hs - wallThickness / 2;
+                const dirs = [
+                    { pos: [0, 0, off],  rot: [0, 0, 0] },
+                    { pos: [0, 0, -off], rot: [0, Math.PI, 0] },
+                    { pos: [off, 0, 0],  rot: [0, Math.PI / 2, 0] },
+                    { pos: [-off, 0, 0], rot: [0, -Math.PI / 2, 0] }
+                ];
+                // Frente usa cor de destaque azul, laterais e traseira usam metal cinza
+                const mats = [_bbMatAccent, _bbMatMetal, _bbMatDark, _bbMatDark];
+                for (let d = 0; d < dirs.length; d++) {
+                    const m = new THREE.Mesh(wallGeo, mats[d]);
+                    m.position.set(...dirs[d].pos);
+                    m.rotation.set(...dirs[d].rot);
+                    m.castShadow = true;
+                    grp.add(m);
+                }
+                // Tampa: topo usa metal mais escuro, fundo usa cinza
+                const capGeo = new THREE.BoxGeometry(hs * 2, wallThickness, hs * 2);
+                const cap = new THREE.Mesh(capGeo, isTopHalf ? _bbMatDark : _bbMatMetal);
+                cap.castShadow = true;
+                cap.position.y = isTopHalf ? hs - wallThickness / 2 : -hs + wallThickness / 2;
+                grp.add(cap);
+                return grp;
+            }
+
+            const topHalf = makeHalf(topWallGeo, true);
+            const botHalf = makeHalf(botWallGeo, false);
+
+            // Olhos
+            function makeEye(xPos) {
+                const eg = new THREE.Group();
+                const base = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 16), _bbMatEyeBase);
+                base.castShadow = true;
+                eg.add(base);
+                const glow = new THREE.Mesh(new THREE.SphereGeometry(0.10, 8, 8), _bbMatGlow);
+                glow.position.set(xPos > 0 ? -0.06 : 0.06, 0.08, 0.20);
+                eg.add(glow);
+                eg.position.set(xPos, 1.05, 0.8);
+                return eg;
+            }
+            topHalf.add(makeEye(-0.55));
+            topHalf.add(makeEye(0.55));
+
+            // Escala reduzida para caber bem no jogo
+            const bodyGroup = new THREE.Group();
+            bodyGroup.scale.setScalar(0.55);
+            bodyGroup.add(topHalf, botHalf);
+            // Eleva o bot para que os pés fiquem em y=0 (os pés são em y=-hs*scale = -0.55)
+            bodyGroup.position.y = 0.55;
+            bot.add(bodyGroup);
+
+            bot.userData = {
+                type: 'bytebot',
+                hp: 1,
+                topHalf,
+                botHalf,
+                bodyGroup,
+                mouthOpenT: 0,   // 0=fechado, controla abertura da boca
+                damageCooldown: 0,
+                dead: false,
+                spawnY: y        // Y base da plataforma
+            };
+
+            scene.add(bot);
+            enemies.push(bot);
+            return bot;
+        }
+
+        function updateEnemies(delta) {
+            const t = clock.elapsedTime;
+            const playerPos = player.position;
+
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const bot = enemies[i];
+                const ud = bot.userData;
+
+                if (ud.dead) continue;
+
+                // Ticks de cooldown
+                if (ud.damageCooldown > 0) ud.damageCooldown -= delta;
+
+                // ── Distância ao jogador ──────────────────────────────────────
+                const dx = playerPos.x - bot.position.x;
+                const dz = playerPos.z - bot.position.z;
+                const distH = Math.sqrt(dx * dx + dz * dz);
+
+                const DETECT_RANGE = 14;   // raio de deteção
+                const FOLLOW_SPEED = 3.5;  // velocidade de perseguição
+                const STOP_DIST    = 1.8;  // para de avançar quando perto
+
+                if (distH < DETECT_RANGE && distH > STOP_DIST) {
+                    // Move em direção ao jogador
+                    const nx = dx / distH;
+                    const nz = dz / distH;
+                    bot.position.x += nx * FOLLOW_SPEED * delta;
+                    bot.position.z += nz * FOLLOW_SPEED * delta;
+                    // Vira para o jogador
+                    bot.rotation.y = Math.atan2(dx, dz);
+                }
+
+                // ── Separação entre bots (evita acumulação) ──────────────────
+                const SEP_RADIUS = 5.0;
+                const SEP_FORCE  = 12.0;
+                for (let j = 0; j < enemies.length; j++) {
+                    if (j === i) continue;
+                    const other = enemies[j];
+                    if (other.userData.dead) continue;
+                    const sx = bot.position.x - other.position.x;
+                    const sz = bot.position.z - other.position.z;
+                    const sd = Math.sqrt(sx * sx + sz * sz);
+                    if (sd < SEP_RADIUS && sd > 0.001) {
+                        const push = (SEP_RADIUS - sd) / SEP_RADIUS;
+                        bot.position.x += (sx / sd) * push * SEP_FORCE * delta;
+                        bot.position.z += (sz / sd) * push * SEP_FORCE * delta;
+                    }
+                }
+
+                // ── Flutuação e animação de mastigação ───────────────────────
+                bot.position.y = ud.spawnY + Math.sin(t * 1.8 + bot.position.x) * 0.12;
+                ud.bodyGroup.rotation.y = Math.sin(t * 0.6 + bot.position.z * 0.1) * 0.12;
+
+                const mouthOpen = (Math.sin(t * 3.5 + bot.position.x) + 1) / 2;
+                ud.topHalf.rotation.x = -0.1 - mouthOpen * 0.22;
+                ud.topHalf.position.y = 0.08 + mouthOpen * 0.12;
+                ud.topHalf.position.z = mouthOpen * 0.04;
+
+                // ── Hitboxes do bot ───────────────────────────────────────────
+                // Bot: scale 0.55, hs=1 → altura total ~1.1 unidades world
+                // bot.position.y é o topo da plataforma (pés do bot)
+                const botFeetY = bot.position.y;          // pés
+                const botTopY  = bot.position.y + 1.1;    // cabeça
+                const botBodyW = 0.9;                      // raio horizontal do corpo
+
+                // Jogador: pés em player.position.y, cabeça em +2.5
+                const playerFeetY = playerPos.y;
+                const playerTopY  = playerPos.y + 2.5;
+
+                // Overlap vertical real entre jogador e bot
+                const vertOverlap = playerFeetY < botTopY && playerTopY > botFeetY;
+
+                // ── Dano ao jogador por toque lateral ────────────────────────
+                // Só dano se houver overlap horizontal E vertical, e o jogador
+                // não estiver a pisar a cabeça do bot (isso conta como stomp)
+                const isStomping = velocity.y < -2 &&
+                                   playerFeetY  > botTopY - 0.45 &&
+                                   playerFeetY  < botTopY + 0.5  &&
+                                   distH < botBodyW + 0.6;
+
+                if (distH < botBodyW + 0.55 && vertOverlap && !isStomping &&
+                    ud.damageCooldown <= 0 && !FL_isDead) {
+                    health = Math.max(0, health - 1);
+                    updateHUD();
+                    ud.damageCooldown = 1.2;
+                    // Empurra o jogador para longe
+                    if (distH > 0.01) {
+                        velocity.x += -(dx / distH) * 8;
+                        velocity.z += -(dz / distH) * 8;
+                        velocity.y = Math.max(velocity.y, 5);
+                    }
+                    if (health <= 0) {
+                        health = MAX_HEALTH;
+                        updateHUD();
+                        if (coins < 20) { coins = 0; } else { coins = Math.floor(coins * 0.7); }
+                        updateHUD();
+                        player.position.copy(checkpointPos);
+                        velocity.set(0, 0, 0);
+                        isGrounded = false;
+                        FL_isDead = true;
+                        FL_deathTimer = 4.0;
+                        showNotification("💀 Você morreu! Perdeu moedas...");
+                    }
+                }
+
+                // ── Deteção de pulo na cabeça ────────────────────────────────
+                if (isStomping) {
+                    killByteBot(bot, i);
+                    velocity.y = 14;
+                }
+            }
+        }
+
+        function killByteBot(bot, idx) {
+            const ud = bot.userData;
+            ud.dead = true;
+
+            // Explosão de partículas metálicas
+            const pos = bot.position;
+            spawnParticles(pos.x, pos.y + 0.6, pos.z, 0x999999);
+            spawnParticles(pos.x, pos.y + 0.6, pos.z, 0xff0000);
+            spawnParticles(pos.x, pos.y + 0.6, pos.z, 0xffffff);
+
+            scene.remove(bot);
+            enemies.splice(idx, 1);
+
+            // Solta algumas moedas
+            const numCoins = 2 + Math.floor(Math.random() * 2);
+            for (let c = 0; c < numCoins; c++) {
+                const cx = pos.x + (Math.random() - 0.5) * 2;
+                const cz = pos.z + (Math.random() - 0.5) * 2;
+                spawnCoin(cx, pos.y + 0.5, cz, 5);
+            }
+        }
+
+        // ===== FIM INIMIGOS BYTEBOT =====
 
         function showNotification(msg) {
             const notif = document.getElementById('notification');
@@ -3905,6 +4340,33 @@
         function invalidateBoxCache(obj) { _cachedBoxes.delete(obj); }
 
         function updatePhysics(delta) {
+            // ── 0. Timers ────────────────────────────────────────────────────
+            if (voidDamageCooldown > 0) voidDamageCooldown -= delta;
+
+            // Se morto: sem movimento, só gravidade e colisão para ficar parado no chão
+            if (FL_isDead) {
+                velocity.x = 0;
+                velocity.z = 0;
+                velocity.y -= gravity * delta;
+                if (velocity.y < terminalVelocity) velocity.y = terminalVelocity;
+                const pos = player.position.clone();
+                pos.y += velocity.y * delta;
+                // Colisão vertical simples para não afundar no chão
+                for (const obj of floorObjects) {
+                    const objBox = getCachedBox(obj);
+                    const box = getPlayerAABB(pos);
+                    if (!box.intersectsBox(objBox)) continue;
+                    const res = resolveAABB(box, objBox);
+                    if (res && res.axis === 'y' && res.push > 0) {
+                        pos.y += res.push;
+                        velocity.y = 0;
+                        break;
+                    }
+                }
+                player.position.copy(pos);
+                return;
+            }
+
             // ── 1. INPUT E ROTAÇÃO ──────────────────────────────────────────
             const moveForce = 80;
             const friction  = Math.pow(0.01, delta);
@@ -4024,13 +4486,39 @@
                 }
             }
 
-            // ── 4. RESPAWN se caiu fora do mapa ─────────────────────────────
-            if (pos.y < -10) {
-                pos.copy(checkpointPos);
-                velocity.set(0, 0, 0);
-                isGrounded = false;
-                respawnBlinkTimer = 3.0; // pisca por 3 segundos
-                playRespawnSound();
+            // ── 4. VOID — dano ao cair, morte ao zerar vida ─────────────────
+            if (pos.y < -10 && !FL_isDead) {
+                if (voidDamageCooldown <= 0) {
+                    health--;
+                    updateHUD();
+                    voidDamageCooldown = 0.6;
+
+                    if (health <= 0) {
+                        // Morreu: vai pro checkpoint, toca animação de morte, ressuscita em 4s
+                        health = MAX_HEALTH; // vida restaurada depois da animação
+                        updateHUD();
+                        if (coins < 20) {
+                            coins = 0;
+                        } else {
+                            coins = Math.floor(coins * 0.7);
+                        }
+                        updateHUD();
+                        pos.copy(checkpointPos);
+                        velocity.set(0, 0, 0);
+                        isGrounded = false;
+                        // Aciona animação de morte
+                        FL_isDead = true;
+                        FL_deathTimer = 4.0;
+                        showNotification("💀 Você morreu! Perdeu moedas...");
+                    } else {
+                        // Apenas dano: respawn simples
+                        pos.copy(checkpointPos);
+                        velocity.set(0, 0, 0);
+                        isGrounded = false;
+                        respawnBlinkTimer = 1.5;
+                        playRespawnSound();
+                    }
+                }
             }
 
             player.position.copy(pos);
@@ -4132,7 +4620,12 @@
 
         function updateHUD() {
             document.getElementById('coin-count').innerText = coins.toString().padStart(3, '0');
-            document.getElementById('key-count').innerText = keys;
+            const pct = Math.max(0, health / MAX_HEALTH) * 100;
+            const bar = document.getElementById('health-bar');
+            bar.style.width = pct + '%';
+            // Cor: verde > amarelo > vermelho conforme vida vai diminuindo
+            const hue = Math.round(pct * 1.2); // 120=verde, 60=amarelo, 0=vermelho
+            bar.style.background = `hsl(${hue}, 90%, 48%)`;
         }
 
         function onWindowResize() {
@@ -4157,15 +4650,34 @@
                 updateOrbitPlatforms();
                 updateCheckpoints(delta);
                 updateSmokeParticles(delta);
+
+                // Conta regressiva da animação de morte
+                if (FL_isDead) {
+                    FL_deathTimer -= delta;
+                    if (FL_deathTimer <= 0) {
+                        // Ressuscita: restaura pose normal e permite jogar
+                        FL_isDead = false;
+                        FL_deathTimer = -1;
+                        respawnBlinkTimer = 2.5;
+                        playRespawnSound();
+                        // Reseta suavizadores de rotação do corpo para idle
+                        FL_bodyGroup.rotation.x = 0;
+                        FL_bodyGroup.rotation.z = 0;
+                        FL_smooth.bodyLeanX = 0;
+                        FL_smooth.bodyLeanZ = 0;
+                    }
+                }
+
                 updatePhysics(delta);
                 updateCamera();
                 updateCollectibles(delta);
                 updateParticles(delta);
+                updateEnemies(delta);
                 checkGates();
                 updateFooshLooketAnimation(delta, clock.elapsedTime);
 
-                // Piscar o jogador após respawn
-                if (respawnBlinkTimer > 0) {
+                // Piscar o jogador após respawn (só quando não está morto)
+                if (respawnBlinkTimer > 0 && !FL_isDead) {
                     respawnBlinkTimer -= delta;
                     const visible = Math.floor(clock.elapsedTime * 8) % 2 === 0;
                     player.traverse(obj => {

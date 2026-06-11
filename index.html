@@ -2403,7 +2403,7 @@
             // Quando pivot.rotation.x = PI/2, o eixo Z+ do bodyGroup aponta para Y+ world (para cima)
             // Então as estrelas ficam em z = R + folga, orbitando no plano XY do bodyGroup
             FL_deathStars = new THREE.Group();
-            FL_deathStars.position.set(0, 0, R + 2.2); // "costas" = Z+ no bodyGroup
+            FL_deathStars.position.set(0, 0, R + 2.0);
             FL_deathStars.visible = false;
             const _starMat = new THREE.MeshStandardMaterial({ color: 0xffdd00, emissive: 0xffaa00, emissiveIntensity: 3.0, toneMapped: false });
             const NUM_STARS = 4;
@@ -2411,8 +2411,8 @@
                 const starGeo = new THREE.OctahedronGeometry(0.55, 0);
                 const starMesh = new THREE.Mesh(starGeo, _starMat);
                 const angle = (si / NUM_STARS) * Math.PI * 2;
-                // Orbita no plano XY do bodyGroup (= plano horizontal quando deitado)
-                starMesh.position.set(Math.cos(angle) * 1.6, Math.sin(angle) * 1.6, 0);
+                // Orbita no plano XZ do bodyGroup (= plano horizontal world quando deitado)
+                starMesh.position.set(Math.cos(angle) * 1.6, 0, Math.sin(angle) * 1.6);
                 starMesh.userData.baseAngle = angle;
                 FL_deathStars.add(starMesh);
             }
@@ -2474,13 +2474,10 @@
                 const fallProgress = Math.abs(FL_deathPivot.rotation.x) / (Math.PI * 0.5);
                 FL_deathStars.visible = fallProgress > 0.3;
                 if (FL_deathStars.visible) {
-                    // Eixo Z do deathStars group = Y world quando deitado → gira no plano horizontal
-                    FL_deathStars.rotation.z += delta * 4.5;
+                    FL_deathStars.rotation.y += delta * 4.5;
                     FL_deathStars.children.forEach((star, si) => {
-                        // Bobeia levemente no eixo Z (para cima/baixo em world space)
-                        star.position.z = Math.sin(t * 6 + si * 1.57) * 0.22;
                         star.rotation.x += delta * 5;
-                        star.rotation.y += delta * 3;
+                        star.rotation.z += delta * 3;
                     });
                 }
 
@@ -3692,7 +3689,7 @@
                         showNotification("✦ Checkpoint!");
                         // Som de checkpoint (efeito sonoro — não interrompe a música)
                         const _cpSfx = new Audio('checkpoint.mp3');
-                        _cpSfx.volume = 0.8;
+                        _cpSfx.volume = _sfxVolume;
                         _cpSfx.play().catch(() => {});
                         // Explosão de fumaça ao ativar
                         spawnCheckpointSmoke(cp.position.x, cp.position.y, cp.position.z);
@@ -4006,7 +4003,7 @@
             FL_bodyGroup.rotation.x = 0;
             FL_bodyGroup.rotation.z = 0;
             FL_deathStars.visible = false;
-            FL_deathStars.rotation.z = 0;
+            FL_deathStars.rotation.y = 0;
             checkpointPos.set(0, 5, 0);
             lastInputTime = performance.now() / 1000;
             isAFK = false;
@@ -4289,6 +4286,7 @@
                         FL_isDead = true;
                         FL_deathByEnemy = true;
                         FL_deathTimer = 4.0;
+                        playDeathSound();
                         showNotification("💀 Você morreu! Perdeu moedas...");
                     }
                 }
@@ -4559,6 +4557,7 @@
                         // Aciona animação de morte
                         FL_isDead = true;
                         FL_deathTimer = 4.0;
+                        playDeathSound();
                         showNotification("💀 Você morreu! Perdeu moedas...");
                     } else {
                         // Apenas dano: respawn simples
@@ -4720,7 +4719,7 @@
                         FL_bodyGroup.rotation.x = 0;
                         FL_bodyGroup.rotation.z = 0;
                         FL_deathStars.visible = false;
-                        FL_deathStars.rotation.z = 0;
+                        FL_deathStars.rotation.y = 0;
                         FL_smooth.bodyLeanX = 0;
                         FL_smooth.bodyLeanZ = 0;
                     }
@@ -5014,6 +5013,7 @@
         }
         function applySfxVolume(val) {
             _sfxVolume = val / 100;
+            if (_sfxMasterGain) _sfxMasterGain.gain.value = _sfxVolume;
         }
         function applyGraphics(val) {
             _pendingGraphics = val;
@@ -5259,10 +5259,24 @@
         // Usa Web Audio API apenas para filtros em tempo real sobre buffers PCM gerados.
 
         let _audioCtx = null;
+        let _sfxMasterGain = null;
+
         function _ac() {
-            if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (!_audioCtx) {
+                _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                // Master gain node para todos os SFX — _sfxVolume controla este nó
+                _sfxMasterGain = _audioCtx.createGain();
+                _sfxMasterGain.gain.value = _sfxVolume;
+                _sfxMasterGain.connect(_audioCtx.destination);
+            }
             if (_audioCtx.state === 'suspended') _audioCtx.resume();
             return _audioCtx;
+        }
+
+        // Destino de todos os SFX — passa pelo master gain
+        function _sfxDest() {
+            _ac(); // garante que _sfxMasterGain existe
+            return _sfxMasterGain;
         }
 
         // Gera ruído branco num Float32Array
@@ -5299,7 +5313,7 @@
             const g = ctx.createGain();
             g.gain.value = masterGain || 1.0;
             node.connect(g);
-            g.connect(ctx.destination);
+            g.connect(_sfxDest());
             src.start();
         }
 
@@ -5417,8 +5431,8 @@
                 env2.gain.linearRampToValueAtTime(vol * 0.45, startTime + 0.001);
                 env2.gain.exponentialRampToValueAtTime(0.0001, startTime + duration * 0.55);
 
-                osc.connect(env);   env.connect(ctx.destination);
-                osc2.connect(env2); env2.connect(ctx.destination);
+                osc.connect(env);   env.connect(_sfxDest());
+                osc2.connect(env2); env2.connect(_sfxDest());
 
                 osc.start(startTime);  osc.stop(startTime + duration + 0.01);
                 osc2.start(startTime); osc2.stop(startTime + duration * 0.6 + 0.01);
@@ -5433,7 +5447,7 @@
                 const nsrc = ctx.createBufferSource(); nsrc.buffer = nbuf;
                 const nhp = ctx.createBiquadFilter(); nhp.type = 'highpass'; nhp.frequency.value = 4000;
                 const ng = ctx.createGain(); ng.gain.value = vol * 0.5;
-                nsrc.connect(nhp); nhp.connect(ng); ng.connect(ctx.destination);
+                nsrc.connect(nhp); nhp.connect(ng); ng.connect(_sfxDest());
                 nsrc.start(startTime);
             }
 
@@ -5469,7 +5483,7 @@
             const lp1 = ctx.createBiquadFilter(); lp1.type = 'lowpass';  lp1.frequency.value = 1800; lp1.Q.value = 0.8;
             const pk1 = ctx.createBiquadFilter(); pk1.type = 'peaking';  pk1.frequency.value = 280;  pk1.Q.value = 1.6; pk1.gain.value = 14;
             const g1  = ctx.createGain(); g1.gain.value = 0.9;
-            src1.connect(hp1); hp1.connect(lp1); lp1.connect(pk1); pk1.connect(g1); g1.connect(ctx.destination);
+            src1.connect(hp1); hp1.connect(lp1); lp1.connect(pk1); pk1.connect(g1); g1.connect(_sfxDest());
             src1.start(now);
 
             // — Camada 2: arrasto de metal com cutoff descendente (40 ms, dur 280 ms) —
@@ -5490,7 +5504,7 @@
             lp2.frequency.exponentialRampToValueAtTime(800, now + 0.04 + 0.26); // descida = peso
             const pk2 = ctx.createBiquadFilter(); pk2.type = 'peaking';  pk2.frequency.value = 2800; pk2.Q.value = 1.2; pk2.gain.value = 7;
             const g2  = ctx.createGain(); g2.gain.value = 0.6;
-            src2.connect(hp2); hp2.connect(lp2); lp2.connect(pk2); pk2.connect(g2); g2.connect(ctx.destination);
+            src2.connect(hp2); hp2.connect(lp2); lp2.connect(pk2); pk2.connect(g2); g2.connect(_sfxDest());
             src2.start(now + 0.04);
 
             // — Camada 3: ressonância de aro com gain pulsando (70 ms, dur 200 ms) —
@@ -5514,7 +5528,7 @@
             g3.gain.exponentialRampToValueAtTime(0.15, now + 0.14);
             g3.gain.linearRampToValueAtTime(0.40, now + 0.17);
             g3.gain.exponentialRampToValueAtTime(0.001, now + 0.27);
-            src3.connect(bp3a); bp3a.connect(bp3b); bp3b.connect(g3); g3.connect(ctx.destination);
+            src3.connect(bp3a); bp3a.connect(bp3b); bp3b.connect(g3); g3.connect(_sfxDest());
             src3.start(now + 0.07);
 
             // — Camada 4: cauda de ar difusa (200 ms, dur 400 ms) —
@@ -5531,7 +5545,7 @@
             const hp4 = ctx.createBiquadFilter(); hp4.type = 'highpass'; hp4.frequency.value = 300; hp4.Q.value = 0.5;
             const lp4 = ctx.createBiquadFilter(); lp4.type = 'lowpass';  lp4.frequency.value = 2800; lp4.Q.value = 0.6;
             const g4  = ctx.createGain(); g4.gain.value = 0.35;
-            src4.connect(hp4); hp4.connect(lp4); lp4.connect(g4); g4.connect(ctx.destination);
+            src4.connect(hp4); hp4.connect(lp4); lp4.connect(g4); g4.connect(_sfxDest());
             src4.start(now + 0.20);
         }
         // ── PORTÃO A ABRIR ────────────────────────────────────────────────────────
@@ -5551,7 +5565,7 @@
             const lp1 = ctx.createBiquadFilter(); lp1.type = 'lowpass';  lp1.frequency.value = 1600; lp1.Q.value = 0.7;
             const pk1 = ctx.createBiquadFilter(); pk1.type = 'peaking';  pk1.frequency.value = 220;  pk1.Q.value = 1.8; pk1.gain.value = 16;
             const g1  = ctx.createGain(); g1.gain.value = 1.0;
-            src1.connect(hp1); hp1.connect(lp1); lp1.connect(pk1); pk1.connect(g1); g1.connect(ctx.destination);
+            src1.connect(hp1); hp1.connect(lp1); lp1.connect(pk1); pk1.connect(g1); g1.connect(_sfxDest());
             src1.start(now);
 
             // Fase 2 — rangido metálico descendente (80 ms, 600 ms)
@@ -5572,7 +5586,7 @@
             const bp2 = ctx.createBiquadFilter(); bp2.type = 'bandpass'; bp2.frequency.value = 1200; bp2.Q.value = 2.5;
             const pk2 = ctx.createBiquadFilter(); pk2.type = 'peaking';  pk2.frequency.value = 600;  pk2.Q.value = 1.2; pk2.gain.value = 9;
             const g2  = ctx.createGain(); g2.gain.value = 0.75;
-            src2.connect(hp2); hp2.connect(lp2); lp2.connect(bp2); bp2.connect(pk2); pk2.connect(g2); g2.connect(ctx.destination);
+            src2.connect(hp2); hp2.connect(lp2); lp2.connect(bp2); bp2.connect(pk2); pk2.connect(g2); g2.connect(_sfxDest());
             src2.start(now + 0.08);
 
             // Fase 3 — impacto no chão (580 ms, 400 ms): portão bate pesado
@@ -5585,7 +5599,7 @@
             const lp3 = ctx.createBiquadFilter(); lp3.type = 'lowpass';  lp3.frequency.value = 900; lp3.Q.value = 0.8;
             const pk3 = ctx.createBiquadFilter(); pk3.type = 'peaking';  pk3.frequency.value = 120; pk3.Q.value = 1.5; pk3.gain.value = 14;
             const g3  = ctx.createGain(); g3.gain.value = 0.85;
-            src3.connect(hp3); hp3.connect(lp3); lp3.connect(pk3); pk3.connect(g3); g3.connect(ctx.destination);
+            src3.connect(hp3); hp3.connect(lp3); lp3.connect(pk3); pk3.connect(g3); g3.connect(_sfxDest());
             src3.start(now + 0.58);
 
             // Fase 4 — cauda de poeira/ar (680 ms, 500 ms)
@@ -5597,7 +5611,7 @@
             const hp4 = ctx.createBiquadFilter(); hp4.type = 'highpass'; hp4.frequency.value = 150;  hp4.Q.value = 0.5;
             const lp4 = ctx.createBiquadFilter(); lp4.type = 'lowpass';  lp4.frequency.value = 1200; lp4.Q.value = 0.6;
             const g4  = ctx.createGain(); g4.gain.value = 0.4;
-            src4.connect(hp4); hp4.connect(lp4); lp4.connect(g4); g4.connect(ctx.destination);
+            src4.connect(hp4); hp4.connect(lp4); lp4.connect(g4); g4.connect(_sfxDest());
             src4.start(now + 0.68);
         }
 
@@ -5620,7 +5634,7 @@
             const lp1 = ctx.createBiquadFilter(); lp1.type = 'lowpass';  lp1.frequency.value = 600;  lp1.Q.value = 0.7;
             const pk1 = ctx.createBiquadFilter(); pk1.type = 'peaking';  pk1.frequency.value = 160;  pk1.Q.value = 1.6; pk1.gain.value = 14;
             const g1  = ctx.createGain(); g1.gain.value = 1.1;
-            src1.connect(hp1); hp1.connect(lp1); lp1.connect(pk1); pk1.connect(g1); g1.connect(ctx.destination);
+            src1.connect(hp1); hp1.connect(lp1); lp1.connect(pk1); pk1.connect(g1); g1.connect(_sfxDest());
             src1.start(now);
 
             // Layer 2 — click metálico (contato com o bot)
@@ -5632,7 +5646,7 @@
             const hp2 = ctx.createBiquadFilter(); hp2.type = 'highpass'; hp2.frequency.value = 1800; hp2.Q.value = 1.2;
             const lp2 = ctx.createBiquadFilter(); lp2.type = 'lowpass';  lp2.frequency.value = 6000; lp2.Q.value = 0.5;
             const g2  = ctx.createGain(); g2.gain.value = 0.6;
-            src2.connect(hp2); hp2.connect(lp2); lp2.connect(g2); g2.connect(ctx.destination);
+            src2.connect(hp2); hp2.connect(lp2); lp2.connect(g2); g2.connect(_sfxDest());
             src2.start(now);
 
             // Layer 3 — ring-out curto (dor/choque): tom ruído bandpass a cair
@@ -5645,7 +5659,7 @@
             bp3.frequency.setValueAtTime(3200, now);
             bp3.frequency.exponentialRampToValueAtTime(900, now + 0.18);
             const g3  = ctx.createGain(); g3.gain.value = 0.45;
-            src3.connect(bp3); bp3.connect(g3); g3.connect(ctx.destination);
+            src3.connect(bp3); bp3.connect(g3); g3.connect(_sfxDest());
             src3.start(now);
         }
 
@@ -5669,7 +5683,7 @@
             const lp1 = ctx.createBiquadFilter(); lp1.type = 'lowpass';  lp1.frequency.value = 3000; lp1.Q.value = 0.8;
             const pk1 = ctx.createBiquadFilter(); pk1.type = 'peaking';  pk1.frequency.value = 300;  pk1.Q.value = 1.4; pk1.gain.value = 12;
             const g1  = ctx.createGain(); g1.gain.value = 1.2;
-            src1.connect(hp1); hp1.connect(lp1); lp1.connect(pk1); pk1.connect(g1); g1.connect(ctx.destination);
+            src1.connect(hp1); hp1.connect(lp1); lp1.connect(pk1); pk1.connect(g1); g1.connect(_sfxDest());
             src1.start(now);
 
             // Fase 2 — debris metálico (80 ms, 400 ms): rangido descendente
@@ -5687,7 +5701,7 @@
             lp2.frequency.exponentialRampToValueAtTime(600, now + 0.08 + 0.35);
             const pk2 = ctx.createBiquadFilter(); pk2.type = 'peaking';  pk2.frequency.value = 1800; pk2.Q.value = 1.8; pk2.gain.value = 8;
             const g2  = ctx.createGain(); g2.gain.value = 0.7;
-            src2.connect(hp2); hp2.connect(lp2); lp2.connect(pk2); pk2.connect(g2); g2.connect(ctx.destination);
+            src2.connect(hp2); hp2.connect(lp2); lp2.connect(pk2); pk2.connect(g2); g2.connect(_sfxDest());
             src2.start(now + 0.08);
 
             // Fase 3 — dissipação (380 ms, 300 ms): ar/fumaça a desaparecer
@@ -5699,8 +5713,15 @@
             const hp3 = ctx.createBiquadFilter(); hp3.type = 'highpass'; hp3.frequency.value = 200;  hp3.Q.value = 0.5;
             const lp3 = ctx.createBiquadFilter(); lp3.type = 'lowpass';  lp3.frequency.value = 1400; lp3.Q.value = 0.6;
             const g3  = ctx.createGain(); g3.gain.value = 0.4;
-            src3.connect(hp3); hp3.connect(lp3); lp3.connect(g3); g3.connect(ctx.destination);
+            src3.connect(hp3); hp3.connect(lp3); lp3.connect(g3); g3.connect(_sfxDest());
             src3.start(now + 0.38);
+        }
+
+        // ── MORTE DO JOGADOR ──────────────────────────────────────────────────────
+        function playDeathSound() {
+            const sfx = new Audio('death.mp3');
+            sfx.volume = _sfxVolume;
+            sfx.play().catch(() => {});
         }
 
         // ===== FIM DO SISTEMA DE SOM =====

@@ -2124,6 +2124,7 @@
         const MAX_HEALTH = 5;
         let health = MAX_HEALTH;
         let voidDamageCooldown = 0; // evita dano múltiplo imediato ao cair
+        let playerHitCooldown  = 0; // cooldown global de dano por inimigos
 
         // Variáveis do Three.js
         let scene, camera, renderer, dirLight;
@@ -2243,6 +2244,8 @@
         // Referências às partes animadas do FooshLooket
         let FL_bodyGroup, FL_mouth, FL_mouthOpen;
         let FL_LA, FL_RA, FL_LLeg, FL_RLeg;
+        let FL_characterInner, FL_deathPivot;
+        let FL_deathStars; // grupo das estrelinhas que giram na cabeça ao morrer
 
         // Estado de animação do FooshLooket
         let FL_anim = 'idle';
@@ -2251,6 +2254,7 @@
         // Estado de morte
         let FL_deathTimer = -1;     // >= 0 = morreu, conta até 4s para ressuscitar
         let FL_isDead = false;
+        let FL_deathByEnemy = false; // true = morreu para inimigo (respawn só após animação)
 
         // AFK: tempo sem input para começar a dançar
         const AFK_TIMEOUT = 30; // segundos
@@ -2280,10 +2284,14 @@
             // Com scale=0.32, pés ficam em y ≈ -1.536 no espaço do jogo
             // Para pés na y=0 do player: offset = +1.536
             const FL_scale = 0.32;
-            const characterInner = new THREE.Group();
-            characterInner.scale.setScalar(FL_scale);
+            FL_characterInner = new THREE.Group();
+            FL_characterInner.scale.setScalar(FL_scale);
             // Sobe o inner para que os pés do personagem fiquem em y=0 do player
-            characterInner.position.y = 1.54;
+            FL_characterInner.position.y = 1.54;
+
+            // Pivot de morte fica em y=0 (pés): toda a rotação de queda parte daqui
+            FL_deathPivot = new THREE.Group();
+            FL_deathPivot.add(FL_characterInner);
 
             const matGray    = new THREE.MeshStandardMaterial({color:0x666666, roughness:0.65});
             const matRed     = new THREE.MeshStandardMaterial({color:0xee0000, roughness:0.55});
@@ -2292,7 +2300,7 @@
             const matOutline = new THREE.MeshBasicMaterial({color:0x111111, side:THREE.BackSide});
 
             FL_bodyGroup = new THREE.Group();
-            characterInner.add(FL_bodyGroup);
+            FL_characterInner.add(FL_bodyGroup);
 
             const R = 2.5;
 
@@ -2359,7 +2367,7 @@
 
             FL_LA = makeArm(false);
             FL_RA = makeArm(true);
-            characterInner.add(FL_LA.shoulder, FL_RA.shoulder);
+            FL_characterInner.add(FL_LA.shoulder, FL_RA.shoulder);
 
             const LL = 1.15;
             function makeLeg(x){
@@ -2389,9 +2397,28 @@
 
             FL_LLeg = makeLeg(-0.6);
             FL_RLeg = makeLeg(0.6);
-            characterInner.add(FL_LLeg.hip, FL_RLeg.hip);
+            FL_characterInner.add(FL_LLeg.hip, FL_RLeg.hip);
 
-            player.add(characterInner);
+            // Estrelinhas de desmaio — nas costas do personagem deitado
+            // Quando pivot.rotation.x = PI/2, o eixo Z+ do bodyGroup aponta para Y+ world (para cima)
+            // Então as estrelas ficam em z = R + folga, orbitando no plano XY do bodyGroup
+            FL_deathStars = new THREE.Group();
+            FL_deathStars.position.set(0, 0, R + 2.2); // "costas" = Z+ no bodyGroup
+            FL_deathStars.visible = false;
+            const _starMat = new THREE.MeshStandardMaterial({ color: 0xffdd00, emissive: 0xffaa00, emissiveIntensity: 3.0, toneMapped: false });
+            const NUM_STARS = 4;
+            for (let si = 0; si < NUM_STARS; si++) {
+                const starGeo = new THREE.OctahedronGeometry(0.55, 0);
+                const starMesh = new THREE.Mesh(starGeo, _starMat);
+                const angle = (si / NUM_STARS) * Math.PI * 2;
+                // Orbita no plano XY do bodyGroup (= plano horizontal quando deitado)
+                starMesh.position.set(Math.cos(angle) * 1.6, Math.sin(angle) * 1.6, 0);
+                starMesh.userData.baseAngle = angle;
+                FL_deathStars.add(starMesh);
+            }
+            FL_bodyGroup.add(FL_deathStars);
+
+            player.add(FL_deathPivot);
 
             // Ativa sombra em todas as peças do personagem
             player.traverse((obj) => {
@@ -2412,24 +2439,18 @@
 
             // Se morreu, toca animação de morte e ignora o resto
             if (FL_isDead) {
-                // Cai de cara no chão: roda rápido para frente (rotation.x → ~PI/2)
-                // Braços caem flácidos para os lados, pernas esticadas
                 const deadSp = 1 - Math.pow(0.001, delta);
 
-                // Inclina corpo para frente até ficar deitado (~90°)
-                FL_bodyGroup.rotation.x = FL_lerp(FL_bodyGroup.rotation.x, Math.PI * 0.52, deadSp * 1.4);
+                // Corpo inteiro cai de cara no chão: pivot nos pés, gira até ~90°
+                FL_deathPivot.rotation.x = FL_lerp(FL_deathPivot.rotation.x, Math.PI * 0.5, deadSp * 1.4);
+
+                // Corpo e membros ficam rígidos na pose desmaiada
+                FL_bodyGroup.rotation.x = FL_lerp(FL_bodyGroup.rotation.x, 0, deadSp);
                 FL_bodyGroup.rotation.z = FL_lerp(FL_bodyGroup.rotation.z, 0, deadSp);
+                FL_bodyGroup.scale.set(1, 1, 1);
+                FL_bodyGroup.position.y = 0;
 
-                // Escala: squash leve ao cair
-                const targetSqY = FL_deathTimer > 3.4 ? 0.72 : 1.0;
-                FL_bodyGroup.scale.set(
-                    FL_lerp(FL_bodyGroup.scale.x, 1.18, deadSp),
-                    FL_lerp(FL_bodyGroup.scale.y, targetSqY, deadSp),
-                    FL_lerp(FL_bodyGroup.scale.z, 1.18, deadSp)
-                );
-                FL_bodyGroup.position.y = FL_lerp(FL_bodyGroup.position.y, -0.4, deadSp);
-
-                // Braços caem flácidos (pendurados para baixo)
+                // Braços caem flácidos para os lados
                 FL_LA.shoulder.rotation.x = FL_lerp(FL_LA.shoulder.rotation.x, -0.1, deadSp);
                 FL_LA.shoulder.rotation.z = FL_lerp(FL_LA.shoulder.rotation.z, 1.70, deadSp);
                 FL_RA.shoulder.rotation.x = FL_lerp(FL_RA.shoulder.rotation.x, -0.1, deadSp);
@@ -2437,7 +2458,7 @@
                 FL_LA.elbow.rotation.z    = FL_lerp(FL_LA.elbow.rotation.z, 0.6, deadSp);
                 FL_RA.elbow.rotation.z    = FL_lerp(FL_RA.elbow.rotation.z, -0.6, deadSp);
 
-                // Pernas esticadas (desmaiado)
+                // Pernas esticadas
                 FL_LLeg.hip.rotation.x  = FL_lerp(FL_LLeg.hip.rotation.x, 0.05, deadSp);
                 FL_RLeg.hip.rotation.x  = FL_lerp(FL_RLeg.hip.rotation.x, 0.05, deadSp);
                 FL_LLeg.knee.rotation.x = FL_lerp(FL_LLeg.knee.rotation.x, 0.05, deadSp);
@@ -2448,6 +2469,21 @@
                 FL_mouthOpen.visible = false;
                 FL_mouth.rotation.z = FL_lerp(FL_mouth.rotation.z, Math.PI * 0.25, deadSp * 0.5);
                 FL_mouth.scale.setScalar(FL_lerp(FL_mouth.scale.x, 0.7, deadSp * 0.5));
+
+                // Estrelinhas de desmaio — aparecem logo que o corpo começa a cair
+                const fallProgress = Math.abs(FL_deathPivot.rotation.x) / (Math.PI * 0.5);
+                FL_deathStars.visible = fallProgress > 0.3;
+                if (FL_deathStars.visible) {
+                    // Eixo Z do deathStars group = Y world quando deitado → gira no plano horizontal
+                    FL_deathStars.rotation.z += delta * 4.5;
+                    FL_deathStars.children.forEach((star, si) => {
+                        // Bobeia levemente no eixo Z (para cima/baixo em world space)
+                        star.position.z = Math.sin(t * 6 + si * 1.57) * 0.22;
+                        star.rotation.x += delta * 5;
+                        star.rotation.y += delta * 3;
+                    });
+                }
+
                 return;
             }
 
@@ -3962,10 +3998,15 @@
             keys = 0;
             health = MAX_HEALTH;
             voidDamageCooldown = 0;
+            playerHitCooldown  = 0;
             FL_isDead = false;
             FL_deathTimer = -1;
+            FL_deathByEnemy = false;
+            FL_deathPivot.rotation.x = 0;
             FL_bodyGroup.rotation.x = 0;
             FL_bodyGroup.rotation.z = 0;
+            FL_deathStars.visible = false;
+            FL_deathStars.rotation.z = 0;
             checkpointPos.set(0, 5, 0);
             lastInputTime = performance.now() / 1000;
             isAFK = false;
@@ -4221,25 +4262,32 @@
                                    distH < botBodyW + 0.6;
 
                 if (distH < botBodyW + 0.55 && vertOverlap && !isStomping &&
-                    ud.damageCooldown <= 0 && !FL_isDead) {
-                    health = Math.max(0, health - 1);
+                    playerHitCooldown <= 0 && !FL_isDead) {
+                    health = Math.max(0, health - 0.25);
                     updateHUD();
-                    ud.damageCooldown = 1.2;
-                    // Empurra o jogador para longe
+                    ud.damageCooldown = 1.5;   // bot individual não bate de novo tão cedo
+                    playerHitCooldown = 1.5;   // cooldown global: nenhum bot bate durante este tempo
+                    playPlayerHitSound();
+
+                    // Knockback: arremessa o jogador para longe do bot
                     if (distH > 0.01) {
-                        velocity.x += -(dx / distH) * 8;
-                        velocity.z += -(dz / distH) * 8;
-                        velocity.y = Math.max(velocity.y, 5);
+                        const kbX = -(dx / distH);
+                        const kbZ = -(dz / distH);
+                        velocity.x = kbX * 14;
+                        velocity.z = kbZ * 14;
+                        velocity.y = 9;        // salta para cima visivelmente
+                        isGrounded = false;
                     }
                     if (health <= 0) {
                         health = MAX_HEALTH;
                         updateHUD();
                         if (coins < 20) { coins = 0; } else { coins = Math.floor(coins * 0.7); }
                         updateHUD();
-                        player.position.copy(checkpointPos);
+                        // Não teleporta agora — fica no lugar e cai, respawn só após a animação
                         velocity.set(0, 0, 0);
                         isGrounded = false;
                         FL_isDead = true;
+                        FL_deathByEnemy = true;
                         FL_deathTimer = 4.0;
                         showNotification("💀 Você morreu! Perdeu moedas...");
                     }
@@ -4259,6 +4307,7 @@
 
             // Explosão de partículas metálicas
             const pos = bot.position;
+            playEnemyDeathSound();
             spawnParticles(pos.x, pos.y + 0.6, pos.z, 0x999999);
             spawnParticles(pos.x, pos.y + 0.6, pos.z, 0xff0000);
             spawnParticles(pos.x, pos.y + 0.6, pos.z, 0xffffff);
@@ -4342,6 +4391,7 @@
         function updatePhysics(delta) {
             // ── 0. Timers ────────────────────────────────────────────────────
             if (voidDamageCooldown > 0) voidDamageCooldown -= delta;
+            if (playerHitCooldown  > 0) playerHitCooldown  -= delta;
 
             // Se morto: sem movimento, só gravidade e colisão para ficar parado no chão
             if (FL_isDead) {
@@ -4489,9 +4539,9 @@
             // ── 4. VOID — dano ao cair, morte ao zerar vida ─────────────────
             if (pos.y < -10 && !FL_isDead) {
                 if (voidDamageCooldown <= 0) {
-                    health--;
+                    health -= 0.5;
                     updateHUD();
-                    voidDamageCooldown = 0.6;
+                    voidDamageCooldown = 2.5;
 
                     if (health <= 0) {
                         // Morreu: vai pro checkpoint, toca animação de morte, ressuscita em 4s
@@ -4658,11 +4708,19 @@
                         // Ressuscita: restaura pose normal e permite jogar
                         FL_isDead = false;
                         FL_deathTimer = -1;
+                        // Se morreu para inimigo, agora sim teleporta para o checkpoint
+                        if (FL_deathByEnemy) {
+                            player.position.copy(checkpointPos);
+                            FL_deathByEnemy = false;
+                        }
                         respawnBlinkTimer = 2.5;
                         playRespawnSound();
                         // Reseta suavizadores de rotação do corpo para idle
+                        FL_deathPivot.rotation.x = 0;
                         FL_bodyGroup.rotation.x = 0;
                         FL_bodyGroup.rotation.z = 0;
+                        FL_deathStars.visible = false;
+                        FL_deathStars.rotation.z = 0;
                         FL_smooth.bodyLeanX = 0;
                         FL_smooth.bodyLeanZ = 0;
                     }
@@ -5541,6 +5599,108 @@
             const g4  = ctx.createGain(); g4.gain.value = 0.4;
             src4.connect(hp4); hp4.connect(lp4); lp4.connect(g4); g4.connect(ctx.destination);
             src4.start(now + 0.68);
+        }
+
+        // ── DANO AO JOGADOR ───────────────────────────────────────────────────────
+        // Impacto surdo + agudo de "batida" — dois layers:
+        // 1) thud grave (corpo recebendo golpe)
+        // 2) click metálico curto por cima (contato com o bot)
+        function playPlayerHitSound() {
+            const ctx = _ac();
+            const now = ctx.currentTime;
+            const sr  = 44100;
+
+            // Layer 1 — thud surdo (impacto no corpo)
+            const n1 = Math.floor(sr * 0.22);
+            const s1 = _whiteNoise(n1);
+            _applyEnv(s1, (p) => Math.exp(-p * 28) + Math.exp(-p * 7) * 0.3);
+            const buf1 = ctx.createBuffer(1, n1, sr); buf1.getChannelData(0).set(s1);
+            const src1 = ctx.createBufferSource(); src1.buffer = buf1;
+            const hp1 = ctx.createBiquadFilter(); hp1.type = 'highpass'; hp1.frequency.value = 55;   hp1.Q.value = 0.6;
+            const lp1 = ctx.createBiquadFilter(); lp1.type = 'lowpass';  lp1.frequency.value = 600;  lp1.Q.value = 0.7;
+            const pk1 = ctx.createBiquadFilter(); pk1.type = 'peaking';  pk1.frequency.value = 160;  pk1.Q.value = 1.6; pk1.gain.value = 14;
+            const g1  = ctx.createGain(); g1.gain.value = 1.1;
+            src1.connect(hp1); hp1.connect(lp1); lp1.connect(pk1); pk1.connect(g1); g1.connect(ctx.destination);
+            src1.start(now);
+
+            // Layer 2 — click metálico (contato com o bot)
+            const n2 = Math.floor(sr * 0.06);
+            const s2 = _whiteNoise(n2);
+            _applyEnv(s2, (p) => Math.exp(-p * 90));
+            const buf2 = ctx.createBuffer(1, n2, sr); buf2.getChannelData(0).set(s2);
+            const src2 = ctx.createBufferSource(); src2.buffer = buf2;
+            const hp2 = ctx.createBiquadFilter(); hp2.type = 'highpass'; hp2.frequency.value = 1800; hp2.Q.value = 1.2;
+            const lp2 = ctx.createBiquadFilter(); lp2.type = 'lowpass';  lp2.frequency.value = 6000; lp2.Q.value = 0.5;
+            const g2  = ctx.createGain(); g2.gain.value = 0.6;
+            src2.connect(hp2); hp2.connect(lp2); lp2.connect(g2); g2.connect(ctx.destination);
+            src2.start(now);
+
+            // Layer 3 — ring-out curto (dor/choque): tom ruído bandpass a cair
+            const n3 = Math.floor(sr * 0.18);
+            const s3 = _whiteNoise(n3);
+            _applyEnv(s3, (p) => Math.exp(-p * 14));
+            const buf3 = ctx.createBuffer(1, n3, sr); buf3.getChannelData(0).set(s3);
+            const src3 = ctx.createBufferSource(); src3.buffer = buf3;
+            const bp3 = ctx.createBiquadFilter(); bp3.type = 'bandpass'; bp3.Q.value = 4.0;
+            bp3.frequency.setValueAtTime(3200, now);
+            bp3.frequency.exponentialRampToValueAtTime(900, now + 0.18);
+            const g3  = ctx.createGain(); g3.gain.value = 0.45;
+            src3.connect(bp3); bp3.connect(g3); g3.connect(ctx.destination);
+            src3.start(now);
+        }
+
+        // ── MORTE DO INIMIGO BYTEBOT ──────────────────────────────────────────────
+        // Explosão metálica em três fases:
+        // 1) bang inicial (peças a separar-se)
+        // 2) chuva de metal (debris a cair)
+        // 3) fumaça/dissipação
+        function playEnemyDeathSound() {
+            const ctx = _ac();
+            const now = ctx.currentTime;
+            const sr  = 44100;
+
+            // Fase 1 — bang de explosão (0 ms, 120 ms)
+            const n1 = Math.floor(sr * 0.12);
+            const s1 = _whiteNoise(n1);
+            _applyEnv(s1, (p) => Math.exp(-p * 60) + Math.exp(-p * 12) * 0.4);
+            const buf1 = ctx.createBuffer(1, n1, sr); buf1.getChannelData(0).set(s1);
+            const src1 = ctx.createBufferSource(); src1.buffer = buf1;
+            const hp1 = ctx.createBiquadFilter(); hp1.type = 'highpass'; hp1.frequency.value = 80;   hp1.Q.value = 0.5;
+            const lp1 = ctx.createBiquadFilter(); lp1.type = 'lowpass';  lp1.frequency.value = 3000; lp1.Q.value = 0.8;
+            const pk1 = ctx.createBiquadFilter(); pk1.type = 'peaking';  pk1.frequency.value = 300;  pk1.Q.value = 1.4; pk1.gain.value = 12;
+            const g1  = ctx.createGain(); g1.gain.value = 1.2;
+            src1.connect(hp1); hp1.connect(lp1); lp1.connect(pk1); pk1.connect(g1); g1.connect(ctx.destination);
+            src1.start(now);
+
+            // Fase 2 — debris metálico (80 ms, 400 ms): rangido descendente
+            const n2 = Math.floor(sr * 0.40);
+            const s2 = _whiteNoise(n2);
+            _applyEnv(s2, (p) => {
+                const att = 1 - Math.exp(-p * 20);
+                return att * Math.exp(-p * 6);
+            });
+            const buf2 = ctx.createBuffer(1, n2, sr); buf2.getChannelData(0).set(s2);
+            const src2 = ctx.createBufferSource(); src2.buffer = buf2;
+            const hp2 = ctx.createBiquadFilter(); hp2.type = 'highpass'; hp2.frequency.value = 400; hp2.Q.value = 0.6;
+            const lp2 = ctx.createBiquadFilter(); lp2.type = 'lowpass';  lp2.Q.value = 2.0;
+            lp2.frequency.setValueAtTime(5500, now + 0.08);
+            lp2.frequency.exponentialRampToValueAtTime(600, now + 0.08 + 0.35);
+            const pk2 = ctx.createBiquadFilter(); pk2.type = 'peaking';  pk2.frequency.value = 1800; pk2.Q.value = 1.8; pk2.gain.value = 8;
+            const g2  = ctx.createGain(); g2.gain.value = 0.7;
+            src2.connect(hp2); hp2.connect(lp2); lp2.connect(pk2); pk2.connect(g2); g2.connect(ctx.destination);
+            src2.start(now + 0.08);
+
+            // Fase 3 — dissipação (380 ms, 300 ms): ar/fumaça a desaparecer
+            const n3 = Math.floor(sr * 0.30);
+            const s3 = _whiteNoise(n3);
+            _applyEnv(s3, (p) => Math.exp(-p * 8) * 0.35);
+            const buf3 = ctx.createBuffer(1, n3, sr); buf3.getChannelData(0).set(s3);
+            const src3 = ctx.createBufferSource(); src3.buffer = buf3;
+            const hp3 = ctx.createBiquadFilter(); hp3.type = 'highpass'; hp3.frequency.value = 200;  hp3.Q.value = 0.5;
+            const lp3 = ctx.createBiquadFilter(); lp3.type = 'lowpass';  lp3.frequency.value = 1400; lp3.Q.value = 0.6;
+            const g3  = ctx.createGain(); g3.gain.value = 0.4;
+            src3.connect(hp3); hp3.connect(lp3); lp3.connect(g3); g3.connect(ctx.destination);
+            src3.start(now + 0.38);
         }
 
         // ===== FIM DO SISTEMA DE SOM =====

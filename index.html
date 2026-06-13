@@ -2104,6 +2104,92 @@
         </div>
     </div>
 
+    <!-- LABEL DA DANÇA DA VITÓRIA (sobreposto ao jogo) -->
+    <div id="victory-dance-label" style="display:none; position:absolute; top:18px; width:100%; text-align:center; color:#e00; font-size:clamp(18px,3vw,28px); font-family:'Fredoka One',cursive; letter-spacing:0.08em; text-transform:uppercase; font-weight:bold; text-shadow:0 2px 10px rgba(238,0,0,0.3); pointer-events:none; z-index:50;">Dança da Vitória! 🎉</div>
+
+    <!-- TELA DE RESULTADOS -->
+    <style>
+        #results-screen {
+            display: none;
+            position: absolute; top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: 301;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #0a1a3a 0%, #1a3a6a 35%, #1e5fa8 65%, #0d2d5e 100%);
+            overflow: hidden;
+        }
+        #results-screen::before {
+            content: '';
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background:
+                radial-gradient(ellipse at 30% 40%, rgba(100,180,255,0.18) 0%, transparent 60%),
+                radial-gradient(ellipse at 70% 70%, rgba(30,80,180,0.22) 0%, transparent 55%);
+            pointer-events: none;
+        }
+        #results-card {
+            position: relative;
+            background: rgba(10,30,70,0.82);
+            border: 3px solid rgba(100,180,255,0.55);
+            border-radius: 24px;
+            text-align: center;
+            box-shadow: 0 8px 48px rgba(0,80,200,0.45), inset 0 1px 0 rgba(150,210,255,0.15);
+            animation: slideDown 0.5s ease-out;
+            padding: clamp(22px,4vh,50px) clamp(32px,6vw,80px);
+            max-width: min(90vw, 560px);
+            width: 100%;
+            box-sizing: border-box;
+        }
+        #results-left { display: flex; flex-direction: column; align-items: center; }
+        #results-right { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        #results-emoji  { font-size: clamp(32px,5vh,64px); margin-bottom: 2px; }
+        #results-title  { color:#7ecfff; font-family:'Fredoka One',cursive; font-size:clamp(20px,4.5vh,50px); margin:0 0 4px; text-shadow:0 0 18px rgba(100,200,255,0.6),2px 2px 6px #000; letter-spacing:2px; }
+        #results-sub    { color:rgba(180,220,255,0.85); font-family:'Fredoka One',cursive; font-size:clamp(11px,2vh,20px); margin:0 0 clamp(12px,2.5vh,24px); }
+        #results-divider{ border-top:1px solid rgba(100,180,255,0.25); padding-top:clamp(10px,2vh,20px); margin-bottom:clamp(12px,2.5vh,24px); width:100%; }
+        #results-coin-row{ display:flex; align-items:center; justify-content:center; gap:10px; }
+        #results-coin-icon{ font-size:clamp(18px,3.5vh,34px); }
+        #results-coin-label{ font-family:'Fredoka One',cursive; font-size:clamp(13px,2.5vh,26px); color:#fff; text-shadow:1px 1px 3px #000; }
+        #results-coins  { font-family:'Fredoka One',cursive; font-size:clamp(15px,3vh,32px); color:#fff; text-shadow:1px 1px 3px #000; min-width:3ch; text-align:left; transition:color 0.4s, text-shadow 0.4s; }
+        #btn-win-restart{ background:linear-gradient(135deg,#1a6fc4,#2196f3) !important; border-color:rgba(120,200,255,0.8) !important; font-size:clamp(13px,2.2vh,24px) !important; padding:clamp(9px,1.8vh,16px) clamp(22px,4vw,44px) !important; box-shadow:0 4px 20px rgba(30,130,255,0.4) !important; }
+        /* Landscape mobile compacto */
+        @media (max-height: 480px) and (orientation: landscape) {
+            #results-card {
+                flex-direction: row;
+                display: flex;
+                align-items: center;
+                gap: 20px;
+                padding: 14px 28px;
+                max-width: min(96vw, 800px);
+                border-radius: 16px;
+            }
+            #results-left { flex-shrink: 0; }
+            #results-emoji { font-size: clamp(22px,5vh,38px); }
+            #results-title { font-size: clamp(14px,3.5vh,24px); }
+            #results-sub   { font-size: clamp(9px,1.8vh,13px); margin-bottom: 0; }
+            #results-divider { border-top: none; border-left: 1px solid rgba(100,180,255,0.25); padding-top: 0; padding-left: 18px; margin-bottom: 0; margin-left: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; height: auto; width: auto; flex: 1; }
+        }
+    </style>
+    <div id="results-screen">
+        <div id="results-card">
+            <div id="results-left">
+                <div id="results-emoji">📜</div>
+                <h1 id="results-title">FASE COMPLETA!</h1>
+                <p id="results-sub">Encontraste o Pergaminho Antigo!</p>
+            </div>
+            <div id="results-divider">
+                <div id="results-right">
+                    <div id="results-coin-row">
+                        <span id="results-coin-icon">🪙</span>
+                        <span id="results-coin-label">Moedas:</span>
+                        <span id="results-coins">0 / 993</span>
+                    </div>
+                    <button class="btn" id="btn-win-restart">🔄 Jogar Novamente</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="game-container"></div>
 
     <!-- Incluindo Three.js -->
@@ -2113,7 +2199,10 @@
         // --- CONFIGURAÇÕES GERAIS ---
         const GAME_STATE = {
             PLAYING: 0,
-            PAUSED: 1
+            PAUSED: 1,
+            WIN: 2,
+            WIN_DANCE: 3,
+            WIN_LANDING: 4
         };
         let currentState = GAME_STATE.PLAYING;
         
@@ -2231,6 +2320,7 @@
             // Botões do Menu
             document.getElementById('btn-resume').addEventListener('click', togglePause);
             document.getElementById('btn-restart').addEventListener('click', restartGame);
+            document.getElementById('btn-win-restart').addEventListener('click', restartGame);
 
             // Aplica configurações escolhidas antes do jogo iniciar
             applyResolution(_pendingResolution);
@@ -2253,6 +2343,12 @@
 
         // Estado de morte
         let FL_deathTimer = -1;     // >= 0 = morreu, conta até 4s para ressuscitar
+
+        // ── SISTEMA DE COMBOS ─────────────────────────────────────────────────
+        let comboCount = 0;          // inimigos mortos sem tocar o chão
+        let comboResetPending = false; // combo foi feito no ar, aguarda tocar o chão para resetar
+        const comboLabels = ['2x!', '3x!!', '4x!!!', '5x!!!!', 'ULTRA!!!!!'];
+        const comboTextSprites = []; // sprites 3D flutuantes de combo
         let FL_isDead = false;
         let FL_deathByEnemy = false; // true = morreu para inimigo (respawn só após animação)
 
@@ -2870,7 +2966,7 @@
         // --- CONSTRUÇÃO DO NÍVEL (NOVO DESIGN: PROGRESSIVO E ESTRUTURADO) ---
         function buildLevel() {
             // Solo base — aumentado para cobrir toda a extensão do mapa e fazer os abismos mortais serem visíveis
-            const groundGeo = new THREE.CylinderGeometry(800, 800, 14, 64);
+            const groundGeo = new THREE.CylinderGeometry(1800, 1800, 20, 64);
             const groundMat = new THREE.MeshStandardMaterial({ color: COLORS.sand, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2 });
             const ground = new THREE.Mesh(groundGeo, groundMat);
             ground.position.y = -40; 
@@ -3266,11 +3362,11 @@
             createDecoration(422, 27, -198, 'kelp');
 
             // Spawn dos inimigos ByteBot na plataforma final
-            spawnByteBot(410, 27, -200);
-            spawnByteBot(420, 27, -210);
-            spawnByteBot(415, 27, -215);
-            spawnByteBot(405, 27, -200);
-            spawnByteBot(420, 27, -198);
+            spawnByteBot(410, 27, -200, 40, 40, 415, -205);
+            spawnByteBot(420, 27, -210, 40, 40, 415, -205);
+            spawnByteBot(415, 27, -215, 40, 40, 415, -205);
+            spawnByteBot(405, 27, -200, 40, 40, 415, -205);
+            spawnByteBot(420, 27, -198, 40, 40, 415, -205);
 
             // Plataforma ainda mais larga à frente (norte) da plataforma grande — mesmo nível Y=27
             createPlatform(415, -4.0001, -255, 70, 62, 60, COLORS.sandDark, 4); // Topo: Y=27
@@ -3291,6 +3387,191 @@
             spawnCoin(400, 27.5, -265, 5);
             spawnCoin(430, 27.5, -265, 5);
             spawnCoin(415, 27.5, -275, 20);
+
+            // ==========================================
+            // ZONA 9: O DESFILADEIRO SUSPENSO
+            // Sai da plataforma larga (Z=-285, topo Y=27).
+            // Progressão para Z negativo (norte) com subida e descida gradual.
+            // ==========================================
+
+            // --- Corredor de saída norte com inimigos ---
+            // Plataforma de transição (desce ligeiramente: Y=27→22)
+            createPlatform(415, -9.0001, -310, 28, 54, 24, COLORS.sandDark, 4); // Topo: Y=18
+            createCheckpoint(415, 20, -310); // Checkpoint 5
+            spawnByteBot(408, 18, -305, 28, 24, 415, -310);
+            spawnByteBot(422, 18, -315, 28, 24, 415, -310);
+            spawnCoin(415, 18.5, -302, 10);
+            spawnCoin(407, 18.5, -310, 10);
+            spawnCoin(423, 18.5, -310, 10);
+            spawnCoin(415, 18.5, -318, 20);
+            createDecoration(406, 18, -305, 'kelp');
+            createDecoration(424, 18, -315, 'coralPink');
+            createDecoration(415, 18, -322, 'coralYellow');
+
+            // --- Abismo 1: plataformas móveis em X alternadas (câmara curta) ---
+            // Base de saída do corredor: X=415, Z=-322, Y=18
+            createMovingPlatform(415, 18.6, -332, 9, 9, 0xa08060, 'x', 8, 0.36, 0.00);
+            createMovingPlatform(415, 18.6, -345, 9, 9, 0xa08060, 'x', 8, 0.36, 0.50);
+            spawnCoin(415, 19.5, -332, 5);
+            spawnCoin(415, 19.5, -345, 5);
+
+            // Ilhota segura após câmara 1 (sobe: Y=22)
+            createPlatform(415, -7.0001, -358, 12, 58, 12, COLORS.rock); // Topo: Y=22
+            spawnCoin(415, 22.5, -358, 10);
+            createDecoration(410, 22, -362, 'kelp');
+            createDecoration(420, 22, -354, 'coralYellow');
+
+            // --- Degraus subindo (Y=22 → Y=30) ---
+            createPlatform(415, -5.0001, -372, 8, 62, 8, COLORS.rock);  // Topo: Y=26
+            createPlatform(415, -3.0001, -384, 8, 66, 8, COLORS.rock);  // Topo: Y=30
+            spawnCoin(415, 26.5, -372, 5);
+            spawnCoin(415, 30.5, -384, 10);
+            createDecoration(413, 26, -374, 'coralPink');
+            createDecoration(417, 30, -382, 'kelp');
+
+            // Grande plataforma elevada com inimigos (Y=30)
+            createPlatform(415, -2.0001, -408, 30, 68, 28, COLORS.sandDark, 4); // Topo: Y=32
+            spawnByteBot(407, 32, -402, 30, 28, 415, -408);
+            spawnByteBot(423, 32, -414, 30, 28, 415, -408);
+            spawnByteBot(415, 32, -408, 30, 28, 415, -408);
+            spawnCoin(415, 32.5, -400, 10);
+            spawnCoin(406, 32.5, -408, 10);
+            spawnCoin(424, 32.5, -408, 10);
+            spawnCoin(415, 32.5, -416, 20);
+            createDecoration(405, 32, -400, 'coralYellow');
+            createDecoration(425, 32, -416, 'coralPink');
+            createDecoration(405, 32, -416, 'kelp');
+            createDecoration(425, 32, -400, 'coralYellow');
+
+            // ==========================================
+            // ZONA 9 — DESVIO PARA A CHAVE 3
+            // Ramificação para oeste (X negativo) saindo da plataforma elevada
+            // ==========================================
+
+            // Pulo 1 — ilhota lateral oeste (sobe: Y=34)
+            createPlatform(396, -1.0001, -408, 6, 70, 6, COLORS.rock); // Topo: Y=34
+            spawnCoin(396, 34.5, -408, 1);
+
+            // Pulo 2 (Y=37)
+            createPlatform(385, 0.9999, -416, 6, 74, 6, COLORS.rock);  // Topo: Y=37
+            spawnCoin(385, 37.5, -416, 10);
+
+            // Plataformas móveis verticais — sobem e descem até Y≈43
+            createMovingPlatform(374, 39, -424, 7, 7, 0xc4a86e, 'y', 4, 0.28, 0.00);
+            createMovingPlatform(363, 39, -432, 7, 7, 0xc4a86e, 'y', 4, 0.28, 0.50);
+            createMovingPlatform(374, 39, -440, 7, 7, 0xc4a86e, 'y', 4, 0.28, 0.25);
+            spawnCoin(374, 43.5, -424, 1);
+            spawnCoin(363, 43.5, -432, 10);
+            spawnCoin(374, 43.5, -440, 1);
+
+            // Altar da Chave 3 (Y=43)
+            createPlatform(360, 4.9999, -455, 20, 78, 26, COLORS.sandDark, 4); // Topo: Y=43
+            spawnKey(360, 46, -455, "key_3");
+            createDecoration(356, 43, -460, 'coralPink');
+            createDecoration(364, 43, -460, 'coralYellow');
+            createDecoration(356, 43, -450, 'kelp');
+            createDecoration(364, 43, -450, 'coralYellow');
+            spawnCoin(360, 44.5, -455, 20);
+
+            // ==========================================
+            // ZONA 9 — CONTINUAÇÃO NORTE (após plataforma elevada Y=32)
+            // Desce gradualmente enquanto avança para Z negativo
+            // ==========================================
+
+            // Degraus descendo (Y=32 → Y=24)
+            createPlatform(415, -4.0001, -432, 8, 62, 8, COLORS.rock);  // Topo: Y=27
+            createPlatform(415, -6.0001, -444, 8, 58, 8, COLORS.rock);  // Topo: Y=23
+            spawnCoin(415, 27.5, -432, 5);
+            spawnCoin(415, 23.5, -444, 5);
+            createDecoration(413, 27, -434, 'kelp');
+            createDecoration(417, 23, -442, 'coralPink');
+
+            // Plataforma intermédia com plataformas orbitais em YZ
+            createPlatform(415, -7.0001, -462, 16, 56, 16, COLORS.rock); // Topo: Y=21
+            createCheckpoint(415, 23, -462); // Checkpoint 6
+            spawnCoin(415, 21.5, -462, 10);
+            createDecoration(408, 21, -468, 'coralYellow');
+            createDecoration(422, 21, -456, 'kelp');
+
+            // Abismo 2: plataformas orbitais em YZ — carrossel compacto
+            // Centro em Z=-490, raio=10 → oscilam entre Z=-480 e Z=-500 (sem tocar plataformas fixas)
+            createOrbitPlatform(415, 18, -490, 9, 8, 0x9a8070, 10, 0.11, 0.00);
+            createOrbitPlatform(415, 18, -490, 9, 8, 0x9a8070, 10, 0.11, 0.50);
+
+            // Plataforma de aterragem após carrossel (afastada para Z=-512)
+            createPlatform(415, -7.0001, -512, 14, 56, 14, COLORS.sandDark, 4); // Topo: Y=21
+            spawnByteBot(409, 21, -508, 14, 14, 415, -512);
+            spawnByteBot(421, 21, -516, 14, 14, 415, -512);
+            spawnCoin(415, 21.5, -512, 10);
+            createDecoration(409, 21, -516, 'coralPink');
+            createDecoration(421, 21, -508, 'coralYellow');
+
+            // ==========================================
+            // ZONA 9 — PORTÃO 3 E ALTAR FINAL
+            // ==========================================
+
+            // Corredor de aproximação ao portão
+            createPlatform(415, -9.5001, -530, 20, 51, 14, COLORS.sandDark, 4); // Topo: Y=16
+
+            // Portão 3 — dois pilares nos lados (X), grade virada para norte (Z fino)
+            createWall(422.0001, 9, -537.0001, 5, 40, 5, COLORS.rock);  // pilar direito
+            createWall(408.0001, 9, -537.0001, 5, 40, 5, COLORS.rock);  // pilar esquerdo
+            createGate(415, 16, -537.0, 12, 10, 0.4, "key_3");
+
+            spawnCoin(415, 16.5, -524, 10);
+            spawnCoin(415, 16.5, -530, 20);
+            spawnCoin(415, 16.5, -536, 10);
+            createDecoration(408, 16, -526, 'kelp');
+            createDecoration(422, 16, -526, 'coralPink');
+
+            // --- Plataformas após o portão (sobe novamente: Y=16 → Y=26) ---
+            createPlatform(415, -8.5001, -552, 10, 53, 10, COLORS.rock);  // Topo: Y=18
+            createPlatform(415, -6.5001, -566, 10, 57, 10, COLORS.rock);  // Topo: Y=22
+            createPlatform(415, -4.5001, -580, 10, 61, 10, COLORS.rock);  // Topo: Y=26
+            spawnCoin(415, 18.5, -552, 5);
+            spawnCoin(415, 22.5, -566, 10);
+            spawnCoin(415, 26.5, -580, 10);
+            createDecoration(413, 18, -554, 'coralYellow');
+            createDecoration(417, 22, -562, 'kelp');
+            createDecoration(413, 26, -576, 'coralPink');
+
+            // --- Plataformas móveis em Z (câmara final antes da arena) ---
+            createMovingPlatform(415, 26.6, -592, 9, 9, 0x9a8070, 'z', 7, 0.30, 0.00);
+            createMovingPlatform(415, 26.6, -608, 9, 9, 0x9a8070, 'z', 7, 0.30, 0.50);
+            spawnCoin(415, 27.5, -592, 5);
+            spawnCoin(415, 27.5, -608, 5);
+
+            // --- ARENA FINAL (Z=-634, Y=27) ---
+            createPlatform(415, -4.0001, -634, 50, 62, 50, COLORS.sandDark, 4); // Topo: Y=27
+
+            // Inimigos na arena final
+            spawnByteBot(400, 27, -622, 50, 50, 415, -634);
+            spawnByteBot(430, 27, -622, 50, 50, 415, -634);
+            spawnByteBot(400, 27, -646, 50, 50, 415, -634);
+            spawnByteBot(430, 27, -646, 50, 50, 415, -634);
+            spawnByteBot(415, 27, -634, 50, 50, 415, -634);
+
+            // Recompensas e decorações da arena
+            spawnCoin(415, 27.5, -624, 20);
+            spawnCoin(405, 27.5, -634, 20);
+            spawnCoin(425, 27.5, -634, 20);
+            spawnCoin(415, 27.5, -644, 20);
+            spawnCoin(400, 27.5, -624, 10);
+            spawnCoin(430, 27.5, -624, 10);
+            spawnCoin(400, 27.5, -644, 10);
+            spawnCoin(430, 27.5, -644, 10);
+
+            createDecoration(396, 27, -622, 'kelp');
+            createDecoration(434, 27, -622, 'coralPink');
+            createDecoration(396, 27, -646, 'coralYellow');
+            createDecoration(434, 27, -646, 'kelp');
+            createDecoration(415, 27, -616, 'coralPink');
+            createDecoration(415, 27, -652, 'coralYellow');
+            createDecoration(396, 27, -634, 'kelp');
+            createDecoration(434, 27, -634, 'coralPink');
+
+            // Pergaminho final — completar a fase
+            spawnScroll(415, 27, -634);
         }
 
         // Helpers de Construção Ajustados
@@ -3788,6 +4069,214 @@
             collectibles.push(group);
         }
 
+        // ── PERGAMINHO FINAL ──────────────────────────────────────────────────
+        let scrollMesh = null;
+        let scrollHalo = null;
+        const _scrollOriginalPositions = [];
+        let _scrollClock = 0;
+
+        function createPaperTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#e6d5b8';
+            ctx.fillRect(0, 0, 512, 512);
+            const gradient = ctx.createRadialGradient(256, 256, 150, 256, 256, 400);
+            gradient.addColorStop(0, 'rgba(0,0,0,0)');
+            gradient.addColorStop(1, 'rgba(90,60,30,0.45)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 512, 512);
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = 'rgba(50,30,20,0.65)';
+            ctx.lineCap = 'round';
+            const lineSpacing = 40;
+            for (let y = 70; y < 470; y += lineSpacing) {
+                ctx.beginPath();
+                let cx = 60 + (Math.random() > 0.8 ? 50 : 0);
+                ctx.moveTo(cx, y);
+                const endX = 450 - Math.random() * 80;
+                while (cx < endX) {
+                    cx += 12 + Math.random() * 16;
+                    if (cx > endX) cx = endX;
+                    const yOsc = Math.sin(cx * 0.18) * 5 + Math.cos(cx * 0.06) * 3;
+                    if (Math.random() > 0.88) {
+                        ctx.stroke(); ctx.beginPath(); cx += 18; ctx.moveTo(cx, y + yOsc);
+                    } else { ctx.lineTo(cx, y + yOsc); }
+                }
+                ctx.stroke();
+            }
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function spawnScroll(x, y, z) {
+            // ── Geometria ondulante do papel ─────────────────────────────────
+            const geo = new THREE.PlaneGeometry(2.2, 2.8, 32, 32);
+            const mat = new THREE.MeshStandardMaterial({
+                map: createPaperTexture(),
+                side: THREE.DoubleSide,
+                roughness: 0.88,
+                metalness: 0.04,
+            });
+            scrollMesh = new THREE.Mesh(geo, mat);
+            scrollMesh.position.set(x, y, z);
+            scrollMesh.castShadow = true;
+            // guardar posições originais para animação de onda
+            const pa = geo.attributes.position;
+            _scrollOriginalPositions.length = 0;
+            for (let i = 0; i < pa.count; i++) {
+                _scrollOriginalPositions.push(new THREE.Vector3().fromBufferAttribute(pa, i));
+            }
+            scrollMesh.userData = { type: 'scroll', originY: y + 4 };
+            scene.add(scrollMesh);
+
+            // ── Halo circular no chão ─────────────────────────────────────
+            const haloGeo = new THREE.RingGeometry(1.4, 2.2, 64);
+            const haloMat = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.7,
+                depthWrite: false,
+            });
+            scrollHalo = new THREE.Mesh(haloGeo, haloMat);
+            scrollHalo.rotation.x = -Math.PI / 2;
+            scrollHalo.position.set(x, y + 0.15, z);
+            scene.add(scrollHalo);
+        }
+
+        function updateScroll(delta) {
+            if (!scrollMesh) return;
+            _scrollClock += delta;
+            const t = _scrollClock;
+
+            // Animação de onda no papel
+            const pa = scrollMesh.geometry.attributes.position;
+            for (let i = 0; i < pa.count; i++) {
+                const orig = _scrollOriginalPositions[i];
+                const waveZ = Math.sin(orig.x * 2.2 + t * 1.4) * 0.12 +
+                              Math.cos(orig.y * 1.6 + t * 1.1) * 0.08;
+                pa.setZ(i, waveZ);
+            }
+            pa.needsUpdate = true;
+            scrollMesh.geometry.computeVertexNormals();
+
+            // Flutuação vertical
+            scrollMesh.position.y = scrollMesh.userData.originY + Math.sin(t * 1.0) * 0.35;
+            // Rotação suave
+            scrollMesh.rotation.y = Math.sin(t * 0.4) * 0.18;
+            scrollMesh.rotation.x = -0.12 + Math.sin(t * 0.6) * 0.06;
+
+            // Pulsar do halo
+            if (scrollHalo) {
+                const pulse = 0.45 + Math.abs(Math.sin(t * 1.8)) * 0.4;
+                scrollHalo.material.opacity = pulse;
+                const sc = 1.0 + Math.sin(t * 1.8) * 0.08;
+                scrollHalo.scale.set(sc, sc, 1);
+            }
+
+            // Deteção de coleta
+            if (player.position.distanceTo(scrollMesh.position) < 2.5) {
+                scene.remove(scrollMesh);
+                scene.remove(scrollHalo);
+                scrollMesh = null;
+                scrollHalo = null;
+                triggerWin();
+            }
+        }
+
+        const TOTAL_COINS = 993;
+        let _winDanceTimer = 0;
+        const WIN_DANCE_DURATION = 4.0;
+
+        function playAllCoinsSound() {
+            try {
+                const ctx = _ac();
+                const now = ctx.currentTime;
+                const freqs = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+                freqs.forEach((f, i) => {
+                    const osc = ctx.createOscillator();
+                    const g = ctx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.value = f;
+                    g.gain.setValueAtTime(0, now + i * 0.09);
+                    g.gain.linearRampToValueAtTime(0.18, now + i * 0.09 + 0.02);
+                    g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.09 + 0.18);
+                    osc.connect(g); g.connect(_sfxDest());
+                    osc.start(now + i * 0.09);
+                    osc.stop(now + i * 0.09 + 0.2);
+                    const osc2 = ctx.createOscillator();
+                    const g2 = ctx.createGain();
+                    osc2.type = 'sine';
+                    osc2.frequency.value = f * 2;
+                    g2.gain.setValueAtTime(0, now + i * 0.09);
+                    g2.gain.linearRampToValueAtTime(0.07, now + i * 0.09 + 0.02);
+                    g2.gain.exponentialRampToValueAtTime(0.001, now + i * 0.09 + 0.22);
+                    osc2.connect(g2); g2.connect(_sfxDest());
+                    osc2.start(now + i * 0.09);
+                    osc2.stop(now + i * 0.09 + 0.25);
+                });
+            } catch(e) {}
+        }
+
+        function animateCoinCounter(targetCoins) {
+            const span = document.getElementById('results-coins');
+            const allCoins = (targetCoins >= TOTAL_COINS);
+            const duration = 1600; // ms
+            const start = performance.now();
+            function tick(now) {
+                const elapsed = now - start;
+                const progress = Math.min(elapsed / duration, 1);
+                // Easing: rápido no início, desacelera no fim
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const current = Math.round(eased * targetCoins);
+                span.textContent = current + ' / ' + TOTAL_COINS;
+                if (progress < 1) {
+                    requestAnimationFrame(tick);
+                } else {
+                    span.textContent = targetCoins + ' / ' + TOTAL_COINS;
+                    if (allCoins) {
+                        span.style.color = '#FFD700';
+                        span.style.textShadow = '0 0 14px #FFD700, 1px 1px 3px #000';
+                        setTimeout(playAllCoinsSound, 200);
+                    }
+                }
+            }
+            requestAnimationFrame(tick);
+        }
+
+        function showResultsScreen() {
+            // Esconde label da dança
+            document.getElementById('victory-dance-label').style.display = 'none';
+            // Mostra tela de resultados
+            const rs = document.getElementById('results-screen');
+            rs.style.display = 'flex';
+            // Inicia contador animado
+            animateCoinCounter(coins);
+        }
+
+        // Câmera zoom suave no personagem durante a dança da vitória
+        const _winCamTarget = new THREE.Vector3();
+        const _winCamPos    = new THREE.Vector3();
+        function updateWinCamera(delta) {
+            // Zoom in: posição mais próxima e baixa do personagem
+            const target = player.position.clone();
+            target.y += 1.5;
+            _winCamTarget.lerp(target, 0.04);
+            const offset = new THREE.Vector3(0, 5, 11);
+            _winCamPos.copy(player.position).add(offset);
+            camera.position.lerp(_winCamPos, 0.04);
+            camera.lookAt(_winCamTarget);
+        }
+
+        function triggerWin() {
+            currentState = GAME_STATE.WIN_LANDING;
+            _winDanceTimer = 0;
+            // Copia posição atual da câmera para o alvo de zoom
+            _winCamTarget.copy(player.position);
+            _winCamTarget.y += 1.5;
+            _winCamPos.copy(camera.position);
+        }
+
         function spawnKey(x, y, z, id) {
             const group = new THREE.Group();
             
@@ -4052,12 +4541,27 @@
             // Recria a fase de raiz
             buildLevel();
 
+            // Limpar pergaminho e halo se existirem
+            if (scrollMesh) { scene.remove(scrollMesh); scrollMesh = null; }
+            if (scrollHalo) { scene.remove(scrollHalo); scrollHalo = null; }
+            _scrollOriginalPositions.length = 0;
+            _scrollClock = 0;
+
+            // Esconder telas de vitória e resultados
+            document.getElementById('victory-dance-label').style.display = 'none';
+            document.getElementById('results-screen').style.display = 'none';
+            // Repor rotação do personagem após dança
+            if (FL_characterInner) FL_characterInner.rotation.y = 0;
+            _winDanceTimer = 0;
+            currentState = GAME_STATE.PLAYING;
+            if (document.getElementById('pause-menu').style.display === 'flex') {
+                document.getElementById('pause-menu').style.display = 'none';
+            }
+
             // Reaquece cache de boxes após reconstrução
             _cachedBoxes.clear();
             const _allForCache2 = [...new Set([...collidableObjects, ...floorObjects])];
             for (const obj of _allForCache2) getCachedBox(obj);
-
-            togglePause();
         }
 
         // ===== INIMIGOS BYTEBOT =====
@@ -4070,7 +4574,7 @@
         const _bbMatGlow   = new THREE.MeshStandardMaterial({ color: 0xff2200, emissive: 0xff2200, emissiveIntensity: 3, toneMapped: false });
         const _bbMatAccent = new THREE.MeshStandardMaterial({ color: 0xb0b8c8, metalness: 0.2, roughness: 0.45 });
 
-        function spawnByteBot(x, y, z) {
+        function spawnByteBot(x, y, z, platW, platD, platCX, platCZ) {
             const bot = new THREE.Group();
             bot.position.set(x, y, z);
 
@@ -4167,10 +4671,21 @@
                 topHalf,
                 botHalf,
                 bodyGroup,
-                mouthOpenT: 0,   // 0=fechado, controla abertura da boca
+                mouthOpenT: 0,
                 damageCooldown: 0,
                 dead: false,
-                spawnY: y        // Y base da plataforma
+                spawnX: x,
+                spawnZ: z,
+                spawnY: y,
+                // Limites AABB da plataforma — usa centro da plataforma se fornecido, senão spawn
+                boundsMinX: (platCX != null ? platCX : x) - (platW != null ? platW / 2 - 1.5 : 7),
+                boundsMaxX: (platCX != null ? platCX : x) + (platW != null ? platW / 2 - 1.5 : 7),
+                boundsMinZ: (platCZ != null ? platCZ : z) - (platD != null ? platD / 2 - 1.5 : 7),
+                boundsMaxZ: (platCZ != null ? platCZ : z) + (platD != null ? platD / 2 - 1.5 : 7),
+                lungeCooldown: 0,
+                lungeVelX: 0,
+                lungeVelZ: 0,
+                isLunging: false
             };
 
             scene.add(bot);
@@ -4190,6 +4705,7 @@
 
                 // Ticks de cooldown
                 if (ud.damageCooldown > 0) ud.damageCooldown -= delta;
+                if (ud.lungeCooldown  > 0) ud.lungeCooldown  -= delta;
 
                 // ── Distância ao jogador ──────────────────────────────────────
                 const dx = playerPos.x - bot.position.x;
@@ -4210,6 +4726,40 @@
                     bot.rotation.y = Math.atan2(dx, dz);
                 }
 
+                // ── Bote/mordida quando perto ─────────────────────────────────
+                const LUNGE_TRIGGER = 4.5;  // distância para activar o bote
+                const LUNGE_SPEED   = 22.0; // velocidade do bote
+                const LUNGE_DRAG    = 8.0;  // desaceleração do bote
+
+                if (!ud.isLunging && distH < LUNGE_TRIGGER && distH > STOP_DIST &&
+                    ud.lungeCooldown <= 0 && distH < DETECT_RANGE) {
+                    // Inicia o bote
+                    const nx = dx / distH;
+                    const nz = dz / distH;
+                    ud.lungeVelX = nx * LUNGE_SPEED;
+                    ud.lungeVelZ = nz * LUNGE_SPEED;
+                    ud.isLunging = true;
+                    ud.lungeCooldown = 2.2; // próximo bote só daqui a 2.2 s
+                    // Abre a boca instantaneamente
+                    ud.topHalf.rotation.x = -0.55;
+                    ud.topHalf.position.y = 0.28;
+                    bot.rotation.y = Math.atan2(dx, dz);
+                }
+
+                if (ud.isLunging) {
+                    bot.position.x += ud.lungeVelX * delta;
+                    bot.position.z += ud.lungeVelZ * delta;
+                    // Desacelera o bote
+                    ud.lungeVelX -= ud.lungeVelX * LUNGE_DRAG * delta;
+                    ud.lungeVelZ -= ud.lungeVelZ * LUNGE_DRAG * delta;
+                    // Termina o bote quando a velocidade for quase zero
+                    if (Math.abs(ud.lungeVelX) < 0.3 && Math.abs(ud.lungeVelZ) < 0.3) {
+                        ud.isLunging = false;
+                        ud.lungeVelX = 0;
+                        ud.lungeVelZ = 0;
+                    }
+                }
+
                 // ── Separação entre bots (evita acumulação) ──────────────────
                 const SEP_RADIUS = 5.0;
                 const SEP_FORCE  = 12.0;
@@ -4227,14 +4777,29 @@
                     }
                 }
 
+                // ── Confinamento à plataforma (AABB) ─────────────────────────
+                const clampedX = Math.max(ud.boundsMinX, Math.min(ud.boundsMaxX, bot.position.x));
+                const clampedZ = Math.max(ud.boundsMinZ, Math.min(ud.boundsMaxZ, bot.position.z));
+                if (clampedX !== bot.position.x || clampedZ !== bot.position.z) {
+                    bot.position.x = clampedX;
+                    bot.position.z = clampedZ;
+                    if (ud.isLunging) {
+                        ud.isLunging = false;
+                        ud.lungeVelX = 0;
+                        ud.lungeVelZ = 0;
+                    }
+                }
+
                 // ── Flutuação e animação de mastigação ───────────────────────
                 bot.position.y = ud.spawnY + Math.sin(t * 1.8 + bot.position.x) * 0.12;
                 ud.bodyGroup.rotation.y = Math.sin(t * 0.6 + bot.position.z * 0.1) * 0.12;
 
                 const mouthOpen = (Math.sin(t * 3.5 + bot.position.x) + 1) / 2;
-                ud.topHalf.rotation.x = -0.1 - mouthOpen * 0.22;
-                ud.topHalf.position.y = 0.08 + mouthOpen * 0.12;
-                ud.topHalf.position.z = mouthOpen * 0.04;
+                if (!ud.isLunging) {
+                    ud.topHalf.rotation.x = -0.1 - mouthOpen * 0.22;
+                    ud.topHalf.position.y = 0.08 + mouthOpen * 0.12;
+                    ud.topHalf.position.z = mouthOpen * 0.04;
+                }
 
                 // ── Hitboxes do bot ───────────────────────────────────────────
                 // Bot: scale 0.55, hs=1 → altura total ~1.1 unidades world
@@ -4299,6 +4864,91 @@
             }
         }
 
+        // ── SOM DE COMBO (pitch cresce com o combo) ───────────────────────────
+        function playComboSound(count) {
+            const ctx = _ac();
+            const now = ctx.currentTime;
+            const sr  = 44100;
+            // Pitch base sobe conforme o combo: count=2→1.0, 3→1.3, 4→1.6, 5+→2.0
+            const pitchMult = Math.min(1.0 + (count - 2) * 0.35, 2.2);
+            const baseFreq  = 520 * pitchMult;
+            const dur = 0.18;
+            const n = Math.floor(sr * dur);
+
+            // Oscilador simples (onda quadrada filtrada) — bip curto e alegre
+            const osc = ctx.createOscillator();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(baseFreq, now);
+            osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, now + dur * 0.6);
+
+            const lp = ctx.createBiquadFilter();
+            lp.type = 'lowpass';
+            lp.frequency.value = 2200;
+            lp.Q.value = 1.2;
+
+            const env = ctx.createGain();
+            env.gain.setValueAtTime(0.0, now);
+            env.gain.linearRampToValueAtTime(0.55, now + 0.02);
+            env.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+            osc.connect(lp); lp.connect(env); env.connect(_sfxDest());
+            osc.start(now); osc.stop(now + dur + 0.01);
+        }
+
+        // ── TEXTO 3D DE COMBO FLUTUANTE ───────────────────────────────────────
+        function spawnComboText(x, y, z, count) {
+            const label = comboLabels[Math.min(count - 2, comboLabels.length - 1)];
+            const colors = ['#ffee00','#ff9900','#ff4400','#ff00cc','#00eeff'];
+            const color  = colors[Math.min(count - 2, colors.length - 1)];
+
+            const size = 256;
+            const canvas = document.createElement('canvas');
+            canvas.width = size * 2; canvas.height = size;
+            const c2d = canvas.getContext('2d');
+
+            const fontSize = Math.min(48 + (count - 2) * 8, 80);
+            c2d.font = `bold ${fontSize}px "Fredoka One", cursive`;
+            c2d.textAlign = 'center';
+            c2d.textBaseline = 'middle';
+            // Sombra / contorno
+            c2d.strokeStyle = '#000';
+            c2d.lineWidth = 8;
+            c2d.strokeText(label, size, size * 0.5);
+            c2d.fillStyle = color;
+            c2d.fillText(label, size, size * 0.5);
+
+            const tex = new THREE.CanvasTexture(canvas);
+            const mat = new THREE.SpriteMaterial({
+                map: tex,
+                transparent: true,
+                opacity: 1.0,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending,
+            });
+            const sprite = new THREE.Sprite(mat);
+            const scale = 4 + (count - 2) * 0.6;
+            sprite.scale.set(scale * 2, scale, 1);
+            sprite.position.set(x, y + 3, z);
+            sprite.userData = { life: 1.4, vel: new THREE.Vector3(0, 4, 0) };
+            scene.add(sprite);
+            comboTextSprites.push(sprite);
+        }
+
+        function updateComboTexts(delta) {
+            for (let i = comboTextSprites.length - 1; i >= 0; i--) {
+                const s = comboTextSprites[i];
+                s.userData.life -= delta * 0.9;
+                if (s.userData.life <= 0) {
+                    scene.remove(s);
+                    comboTextSprites.splice(i, 1);
+                    continue;
+                }
+                s.userData.vel.y *= 0.92;
+                s.position.addScaledVector(s.userData.vel, delta);
+                s.material.opacity = Math.min(s.userData.life, 1.0);
+            }
+        }
+
         function killByteBot(bot, idx) {
             const ud = bot.userData;
             ud.dead = true;
@@ -4310,16 +4960,28 @@
             spawnParticles(pos.x, pos.y + 0.6, pos.z, 0xff0000);
             spawnParticles(pos.x, pos.y + 0.6, pos.z, 0xffffff);
 
+            // ── SISTEMA DE COMBOS ─────────────────────────────────────────────
+            if (!isGrounded) {
+                comboCount++;
+                comboResetPending = true;
+                if (comboCount >= 2) {
+                    playComboSound(comboCount);
+                    spawnComboText(pos.x, pos.y, pos.z, comboCount);
+                    // A partir de 3 kills consecutivos, recupera um pouco de vida
+                    if (comboCount >= 3) {
+                        health = Math.min(MAX_HEALTH, health + 0.5);
+                        updateHUD();
+                    }
+                }
+            } else {
+                comboCount = 1;
+                comboResetPending = false;
+            }
+
             scene.remove(bot);
             enemies.splice(idx, 1);
 
-            // Solta algumas moedas
-            const numCoins = 2 + Math.floor(Math.random() * 2);
-            for (let c = 0; c < numCoins; c++) {
-                const cx = pos.x + (Math.random() - 0.5) * 2;
-                const cz = pos.z + (Math.random() - 0.5) * 2;
-                spawnCoin(cx, pos.y + 0.5, cz, 5);
-            }
+
         }
 
         // ===== FIM INIMIGOS BYTEBOT =====
@@ -4523,6 +5185,11 @@
                                 velocity.y = 0;
                                 isGrounded = true;
                                 doubleJumpAvailable = false;
+                                // Resetar combo ao tocar o chão
+                                if (comboResetPending) {
+                                    comboCount = 0;
+                                    comboResetPending = false;
+                                }
                             }
                         } else {
                             // Empurrado para baixo → é teto
@@ -4699,6 +5366,8 @@
                 updateOrbitPlatforms();
                 updateCheckpoints(delta);
                 updateSmokeParticles(delta);
+                updateComboTexts(delta);
+                updateScroll(delta);
 
                 // Conta regressiva da animação de morte
                 if (FL_isDead) {
@@ -4749,6 +5418,100 @@
                     });
                     if (FL_mouth) FL_mouth.visible = FL_anim !== 'jump';
                     if (FL_mouthOpen) FL_mouthOpen.visible = FL_anim === 'jump';
+                }
+            } else if (currentState === GAME_STATE.WIN_LANDING) {
+                // Fase de aterragem: cai com gravidade até chegar ao chão
+                velocity.x = 0;
+                velocity.z = 0;
+                velocity.y -= gravity * delta;
+                if (velocity.y < -50) velocity.y = -50;
+                const pos = player.position;
+                pos.y += velocity.y * delta;
+
+                // Deteção de chão — verifica floorObjects
+                let landed = false;
+                const pBox = new THREE.Box3().setFromObject(player);
+                for (const floor of floorObjects) {
+                    const fBox = new THREE.Box3().setFromObject(floor);
+                    if (pBox.min.y <= fBox.max.y + 0.05 && pBox.max.y > fBox.min.y &&
+                        pBox.max.x > fBox.min.x && pBox.min.x < fBox.max.x &&
+                        pBox.max.z > fBox.min.z && pBox.min.z < fBox.max.z) {
+                        pos.y = fBox.max.y;
+                        velocity.y = 0;
+                        landed = true;
+                        break;
+                    }
+                }
+                // Animação de queda (pose de salto descendente)
+                updateFooshLooketAnimation(delta, clock.elapsedTime);
+                updateWinCamera(delta);
+
+                if (landed) {
+                    // Aterrou — começa a dança
+                    currentState = GAME_STATE.WIN_DANCE;
+                    _winDanceTimer = 0;
+                    document.getElementById('victory-dance-label').style.display = 'block';
+                }
+
+            } else if (currentState === GAME_STATE.WIN_DANCE) {
+                // Dança da vitória ali mesmo no mundo do jogo
+                _winDanceTimer += delta;
+
+                const t = clock.elapsedTime;
+                const jumpSpeed = 16, waveSpeed = 18;
+                const jumpCycle = Math.sin(t * jumpSpeed);
+                const bounce    = Math.abs(jumpCycle);
+                const wave      = Math.sin(t * waveSpeed) * 0.6;
+                const sp = 1 - Math.pow(0.001, delta);
+
+                velocity.set(0, 0, 0);
+
+                FL_smooth.lShoulderX = FL_lerp(FL_smooth.lShoulderX, -0.2, sp * 0.8);
+                FL_smooth.lShoulderZ = FL_lerp(FL_smooth.lShoulderZ, -1.5 + wave, sp * 0.8);
+                FL_smooth.rShoulderX = FL_lerp(FL_smooth.rShoulderX, -0.2, sp * 0.8);
+                FL_smooth.rShoulderZ = FL_lerp(FL_smooth.rShoulderZ,  1.5 + wave, sp * 0.8);
+                FL_smooth.lElbowZ    = FL_lerp(FL_smooth.lElbowZ,    0.2,  sp);
+                FL_smooth.rElbowZ    = FL_lerp(FL_smooth.rElbowZ,   -0.2,  sp);
+                const leftKneeUp  = Math.max(0,  jumpCycle);
+                const rightKneeUp = Math.max(0, -jumpCycle);
+                FL_smooth.lHipX  = FL_lerp(FL_smooth.lHipX,  leftKneeUp  * 1.5, sp);
+                FL_smooth.rHipX  = FL_lerp(FL_smooth.rHipX,  rightKneeUp * 1.5, sp);
+                FL_smooth.lKneeX = FL_lerp(FL_smooth.lKneeX, leftKneeUp  * 0.4, sp);
+                FL_smooth.rKneeX = FL_lerp(FL_smooth.rKneeX, rightKneeUp * 0.4, sp);
+                FL_smooth.bodyOffY   = FL_lerp(FL_smooth.bodyOffY,   bounce * 0.25, sp);
+                FL_smooth.bodyScaleX = FL_lerp(FL_smooth.bodyScaleX, 1.0, sp);
+                FL_smooth.bodyScaleY = FL_lerp(FL_smooth.bodyScaleY, 1.0, sp);
+                FL_smooth.bodyScaleZ = FL_lerp(FL_smooth.bodyScaleZ, 1.0, sp);
+                FL_smooth.bodyLeanX  = FL_lerp(FL_smooth.bodyLeanX,  Math.sin(t * jumpSpeed) * 0.08, sp * 0.6);
+                FL_smooth.bodyLeanZ  = FL_lerp(FL_smooth.bodyLeanZ,  Math.sin(t * jumpSpeed / 2) * 0.12, sp * 0.6);
+                FL_characterInner.rotation.y = Math.sin(t * jumpSpeed / 2) * 0.4;
+
+                FL_bodyGroup.scale.set(FL_smooth.bodyScaleX, FL_smooth.bodyScaleY, FL_smooth.bodyScaleZ);
+                FL_bodyGroup.position.y = FL_smooth.bodyOffY;
+                FL_bodyGroup.rotation.x = FL_smooth.bodyLeanX;
+                FL_bodyGroup.rotation.z = FL_smooth.bodyLeanZ;
+                FL_LA.shoulder.rotation.x = FL_smooth.lShoulderX;
+                FL_LA.shoulder.rotation.z = FL_smooth.lShoulderZ;
+                FL_RA.shoulder.rotation.x = FL_smooth.rShoulderX;
+                FL_RA.shoulder.rotation.z = FL_smooth.rShoulderZ;
+                FL_LA.elbow.rotation.z    = FL_smooth.lElbowZ;
+                FL_RA.elbow.rotation.z    = FL_smooth.rElbowZ;
+                FL_LLeg.hip.rotation.x   = FL_smooth.lHipX;
+                FL_RLeg.hip.rotation.x   = FL_smooth.rHipX;
+                FL_LLeg.knee.rotation.x  = FL_smooth.lKneeX;
+                FL_RLeg.knee.rotation.x  = FL_smooth.rKneeX;
+
+                // Boca aberta sorrindo (como no pulo)
+                FL_mouth.visible     = false;
+                FL_mouthOpen.visible = true;
+                FL_mouthOpen.scale.setScalar(1.3 + bounce * 0.15);
+
+                updateWinCamera(delta);
+
+                if (_winDanceTimer >= WIN_DANCE_DURATION) {
+                    currentState = GAME_STATE.WIN;
+                    FL_characterInner.rotation.y = 0;
+                    showResultsScreen();
                 }
             }
 

@@ -2127,18 +2127,65 @@
                 radial-gradient(ellipse at 70% 70%, rgba(30,80,180,0.22) 0%, transparent 55%);
             pointer-events: none;
         }
+        /* Wipe overlay que varre a tela revelando o fundo */
+        #results-wipe {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #050e1f;
+            transform-origin: top center;
+            z-index: 1;
+            pointer-events: none;
+        }
+        @keyframes results-wipe-out {
+            0%   { transform: scaleY(1); }
+            100% { transform: scaleY(0); }
+        }
         #results-card {
             position: relative;
+            z-index: 2;
             background: rgba(10,30,70,0.82);
             border: 3px solid rgba(100,180,255,0.55);
             border-radius: 24px;
             text-align: center;
             box-shadow: 0 8px 48px rgba(0,80,200,0.45), inset 0 1px 0 rgba(150,210,255,0.15);
-            animation: slideDown 0.5s ease-out;
             padding: clamp(22px,4vh,50px) clamp(32px,6vw,80px);
             max-width: min(90vw, 560px);
             width: 100%;
             box-sizing: border-box;
+            opacity: 0;
+            transform: scale(0.5) translateY(60px);
+        }
+        @keyframes results-card-pop {
+            0%   { opacity: 0; transform: scale(0.5) translateY(60px); }
+            60%  { opacity: 1; transform: scale(1.07) translateY(-8px); }
+            80%  { transform: scale(0.97) translateY(3px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        #results-title {
+            opacity: 0;
+            transform: translateX(-40px);
+        }
+        @keyframes results-title-slide {
+            0%   { opacity: 0; transform: translateX(-40px); }
+            60%  { opacity: 1; transform: translateX(6px); }
+            100% { opacity: 1; transform: translateX(0); }
+        }
+        #results-divider {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        @keyframes results-divider-rise {
+            0%   { opacity: 0; transform: translateY(30px); }
+            60%  { opacity: 1; transform: translateY(-5px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        #btn-win-restart {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        @keyframes results-btn-rise {
+            0%   { opacity: 0; transform: translateY(20px); }
+            60%  { opacity: 1; transform: translateY(-4px); }
+            100% { opacity: 1; transform: translateY(0); }
         }
         #results-left { display: flex; flex-direction: column; align-items: center; }
         #results-right { display: flex; flex-direction: column; align-items: center; gap: 10px; }
@@ -2170,11 +2217,10 @@
         }
     </style>
     <div id="results-screen">
+        <div id="results-wipe"></div>
         <div id="results-card">
             <div id="results-left">
-                <div id="results-emoji">📜</div>
                 <h1 id="results-title">FASE COMPLETA!</h1>
-                <p id="results-sub">Encontraste o Pergaminho Antigo!</p>
             </div>
             <div id="results-divider">
                 <div id="results-right">
@@ -4179,6 +4225,7 @@
                 scene.remove(scrollHalo);
                 scrollMesh = null;
                 scrollHalo = null;
+                playWinSound();
                 triggerWin();
             }
         }
@@ -4248,11 +4295,57 @@
             document.getElementById('victory-dance-label').style.display = 'none';
             // Para a música de fundo
             _music.stop();
-            // Mostra tela de resultados
+
+            // Mostra tela e reseta estados das animações
             const rs = document.getElementById('results-screen');
             rs.style.display = 'flex';
-            // Inicia contador animado
-            animateCoinCounter(coins);
+
+            const wipe    = document.getElementById('results-wipe');
+            const card    = document.getElementById('results-card');
+            const title   = document.getElementById('results-title');
+            const divider = document.getElementById('results-divider');
+            const btn     = document.getElementById('btn-win-restart');
+
+            // Reset
+            wipe.style.animation    = 'none';
+            card.style.animation    = 'none';
+            title.style.animation   = 'none';
+            divider.style.animation = 'none';
+            btn.style.animation     = 'none';
+            wipe.style.transform    = 'scaleY(1)';
+            card.style.opacity      = '0';
+            card.style.transform    = 'scale(0.5) translateY(60px)';
+            title.style.opacity     = '0';
+            divider.style.opacity   = '0';
+            btn.style.opacity       = '0';
+
+            // Força reflow
+            void wipe.offsetWidth;
+
+            // 1) Wipe varre a tela pra baixo (300ms)
+            wipe.style.animation = 'results-wipe-out 0.35s cubic-bezier(0.7,0,0.3,1) forwards';
+
+            // 2) Card salta ao centro (começa durante o wipe)
+            setTimeout(() => {
+                card.style.animation = 'results-card-pop 0.55s cubic-bezier(0.34,1.56,0.64,1) forwards';
+            }, 200);
+
+            // 3) Título desliza da esquerda
+            setTimeout(() => {
+                title.style.animation = 'results-title-slide 0.4s cubic-bezier(0.34,1.4,0.64,1) forwards';
+            }, 480);
+
+            // 4) Linha de moedas sobe
+            setTimeout(() => {
+                divider.style.animation = 'results-divider-rise 0.4s cubic-bezier(0.34,1.4,0.64,1) forwards';
+                // Inicia contador animado junto
+                animateCoinCounter(coins);
+            }, 620);
+
+            // 5) Botão sobe com pequeno delay
+            setTimeout(() => {
+                btn.style.animation = 'results-btn-rise 0.4s cubic-bezier(0.34,1.4,0.64,1) forwards';
+            }, 760);
         }
 
         // Câmera zoom suave no personagem durante a dança da vitória
@@ -6485,6 +6578,13 @@
         // ── MORTE DO JOGADOR ──────────────────────────────────────────────────────
         function playDeathSound() {
             const sfx = new Audio('death.mp3');
+            sfx.volume = _sfxVolume;
+            sfx.play().catch(() => {});
+        }
+
+        // ── VITÓRIA ───────────────────────────────────────────────────────────────
+        function playWinSound() {
+            const sfx = new Audio('win.mp3');
             sfx.volume = _sfxVolume;
             sfx.play().catch(() => {});
         }

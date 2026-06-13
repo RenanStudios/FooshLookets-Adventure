@@ -148,18 +148,17 @@
         /* HUD panel: barra que sai do retrato */
         .hud-panel {
             position: relative;
-            margin-left: -12px;
+            margin-left: 6px;
             display: flex;
             flex-direction: column;
             justify-content: center;
             gap: clamp(2px, 0.5vw, 6px);
-            background: rgba(0,0,0,0.52);
-            border: 2px solid rgba(255,255,255,0.85);
-            border-left: none;
-            border-radius: 0 18px 18px 0;
-            padding: clamp(4px, 0.8vw, 9px) clamp(10px, 1.8vw, 18px) clamp(4px, 0.8vw, 9px) clamp(14px, 2.5vw, 24px);
+            background: none;
+            border: none;
+            border-radius: 0;
+            padding: clamp(4px, 0.8vw, 9px) 0;
             min-width: clamp(110px, 18vw, 200px);
-            box-shadow: 0 4px 14px rgba(0,0,0,0.45);
+            box-shadow: none;
         }
 
         /* Linha de moedas */
@@ -4247,6 +4246,8 @@
         function showResultsScreen() {
             // Esconde label da dança
             document.getElementById('victory-dance-label').style.display = 'none';
+            // Para a música de fundo
+            _music.stop();
             // Mostra tela de resultados
             const rs = document.getElementById('results-screen');
             rs.style.display = 'flex';
@@ -4271,6 +4272,8 @@
         function triggerWin() {
             currentState = GAME_STATE.WIN_LANDING;
             _winDanceTimer = 0;
+            // Vira o personagem de frente para a câmera (sul, direção Z positivo)
+            player.rotation.y = 0;
             // Copia posição atual da câmera para o alvo de zoom
             _winCamTarget.copy(player.position);
             _winCamTarget.y += 1.5;
@@ -5450,7 +5453,6 @@
                     // Aterrou — começa a dança
                     currentState = GAME_STATE.WIN_DANCE;
                     _winDanceTimer = 0;
-                    document.getElementById('victory-dance-label').style.display = 'block';
                 }
 
             } else if (currentState === GAME_STATE.WIN_DANCE) {

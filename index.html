@@ -2230,6 +2230,7 @@
                         <span id="results-coins">0 / 993</span>
                     </div>
                     <button class="btn" id="btn-win-restart">🔄 Jogar Novamente</button>
+                    <button class="btn" id="btn-win-next" style="display:none;">➡️ Próxima Fase</button>
                 </div>
             </div>
         </div>
@@ -2267,10 +2268,12 @@
         const floorObjects = []; // Para superfícies em que o jogador se pode apoiar
         const collectibles = []; // Moedas e chaves
         const gates = []; // Portões interativos
+        const decorations = []; // Corais, algas e pedras decorativas
         const particles = [];
         const enemies = []; // Inimigos ByteBot
         const movingPlatforms = []; // Plataformas com movimento próprio (puzzle)
         const orbitPlatforms  = []; // Plataformas que giram em círculo
+        const crumblingPlatforms = []; // Plataformas que caem ao pisar e voltam em 3s
 
         // Checkpoint
         let checkpointPos = new THREE.Vector3(0, 5, 0); // posição de respawn activa
@@ -2290,6 +2293,14 @@
         
         // Relógio para o delta time
         const clock = new THREE.Clock();
+        let gameTime = 0; // Tempo acumulado usando delta limitado (evita saltos nas plataformas)
+
+        // Objetos reutilizáveis para evitar alocações por frame (reduz freezes do GC)
+        const _tmpVec3a  = new THREE.Vector3();
+        const _tmpVec3b  = new THREE.Vector3();
+        const _tmpBox3a  = new THREE.Box3();
+        const _tmpBox3b  = new THREE.Box3();
+        const _allObjects = []; // array reutilizado em updatePhysics
 
         // Cores e Materiais do Cenário
         const COLORS = {
@@ -2366,6 +2377,7 @@
             document.getElementById('btn-resume').addEventListener('click', togglePause);
             document.getElementById('btn-restart').addEventListener('click', restartGame);
             document.getElementById('btn-win-restart').addEventListener('click', restartGame);
+            document.getElementById('btn-win-next').addEventListener('click', goToNextLevel);
 
             // Aplica configurações escolhidas antes do jogo iniciar
             applyResolution(_pendingResolution);
@@ -4060,6 +4072,7 @@
             }
             mesh.castShadow = true;
             scene.add(mesh);
+            decorations.push(mesh);
             if(type === 'rock') collidableObjects.push(mesh); // Apenas as pedras têm colisão para evitar travamentos indesejados
         }
 
@@ -4231,6 +4244,7 @@
         }
 
         const TOTAL_COINS = 993;
+        let currentLevel = 1;
         let _winDanceTimer = 0;
         const WIN_DANCE_DURATION = 4.0;
 
@@ -4305,6 +4319,16 @@
             const title   = document.getElementById('results-title');
             const divider = document.getElementById('results-divider');
             const btn     = document.getElementById('btn-win-restart');
+            const btnNext = document.getElementById('btn-win-next');
+
+            // Mostra botão correto conforme o nível
+            if (currentLevel === 1) {
+                btn.style.display = 'none';
+                btnNext.style.display = '';
+            } else {
+                btn.style.display = '';
+                btnNext.style.display = 'none';
+            }
 
             // Reset
             wipe.style.animation    = 'none';
@@ -4312,6 +4336,7 @@
             title.style.animation   = 'none';
             divider.style.animation = 'none';
             btn.style.animation     = 'none';
+            btnNext.style.animation = 'none';
             wipe.style.transform    = 'scaleY(1)';
             card.style.opacity      = '0';
             card.style.transform    = 'scale(0.5) translateY(60px)';
@@ -4351,13 +4376,13 @@
         // Câmera zoom suave no personagem durante a dança da vitória
         const _winCamTarget = new THREE.Vector3();
         const _winCamPos    = new THREE.Vector3();
+        const _winCamOffset = new THREE.Vector3(0, 5, 11);
         function updateWinCamera(delta) {
             // Zoom in: posição mais próxima e baixa do personagem
-            const target = player.position.clone();
-            target.y += 1.5;
-            _winCamTarget.lerp(target, 0.04);
-            const offset = new THREE.Vector3(0, 5, 11);
-            _winCamPos.copy(player.position).add(offset);
+            _tmpVec3a.copy(player.position);
+            _tmpVec3a.y += 1.5;
+            _winCamTarget.lerp(_tmpVec3a, 0.04);
+            _winCamPos.copy(player.position).add(_winCamOffset);
             camera.position.lerp(_winCamPos, 0.04);
             camera.lookAt(_winCamTarget);
         }
@@ -4450,7 +4475,7 @@
 
         // Actualiza a posição de todas as plataformas móveis e invalida os caches de colisão
         function updateMovingPlatforms(delta) {
-            const t = clock.elapsedTime;
+            const t = gameTime;
             for (const p of movingPlatforms) {
                 const prevX = p.mesh.position.x;
                 const prevY = p.mesh.position.y;
@@ -4518,6 +4543,59 @@
 
         // --- LEITURA DE INPUTS ---
         function onKeyDown(event) {
+            // Atalhos de teste: Shift+1 → Fase 1 | Shift+2 → Fase 2
+            if (event.shiftKey && event.code === 'Digit1') {
+                showLoadingScreen(() => {
+                    currentLevel = 1;
+                    player.position.set(0, 5, 0);
+                    velocity.set(0, 0, 0);
+                    coins = 0; keys = 0; health = MAX_HEALTH;
+                    voidDamageCooldown = 0; playerHitCooldown = 0;
+                    FL_isDead = false; FL_deathTimer = -1; FL_deathByEnemy = false;
+                    FL_deathPivot.rotation.x = 0; FL_bodyGroup.rotation.x = 0; FL_bodyGroup.rotation.z = 0;
+                    FL_deathStars.visible = false; FL_deathStars.rotation.y = 0;
+                    checkpointPos.set(0, 5, 0);
+                    lastInputTime = performance.now() / 1000; isAFK = false;
+                    updateHUD();
+                    _clearLevelObjects();
+                    buildLevel();
+                    _cachedBoxes.clear();
+                    for (const obj of [...new Set([...collidableObjects, ...floorObjects])]) getCachedBox(obj);
+                    currentState = GAME_STATE.PLAYING;
+                    document.getElementById('pause-menu').style.display = 'none';
+                    document.getElementById('victory-dance-label').style.display = 'none';
+                    document.getElementById('results-screen').style.display = 'none';
+                    if (FL_characterInner) FL_characterInner.rotation.y = 0;
+                    _winDanceTimer = 0;
+                });
+                return;
+            }
+            if (event.shiftKey && event.code === 'Digit2') {
+                showLoadingScreen(() => {
+                    currentLevel = 2;
+                    player.position.set(0, 25, 0);
+                    velocity.set(0, 0, 0);
+                    coins = 0; keys = 0; health = MAX_HEALTH;
+                    voidDamageCooldown = 0; playerHitCooldown = 0;
+                    FL_isDead = false; FL_deathTimer = -1; FL_deathByEnemy = false;
+                    FL_deathPivot.rotation.x = 0; FL_bodyGroup.rotation.x = 0; FL_bodyGroup.rotation.z = 0;
+                    FL_deathStars.visible = false; FL_deathStars.rotation.y = 0;
+                    checkpointPos.set(0, 25, 0);
+                    lastInputTime = performance.now() / 1000; isAFK = false;
+                    updateHUD();
+                    _clearLevelObjects();
+                    buildLevel2();
+                    _cachedBoxes.clear();
+                    for (const obj of [...new Set([...collidableObjects, ...floorObjects])]) getCachedBox(obj);
+                    currentState = GAME_STATE.PLAYING;
+                    document.getElementById('pause-menu').style.display = 'none';
+                    document.getElementById('victory-dance-label').style.display = 'none';
+                    document.getElementById('results-screen').style.display = 'none';
+                    if (FL_characterInner) FL_characterInner.rotation.y = 0;
+                    _winDanceTimer = 0;
+                });
+                return;
+            }
             if (event.code === 'Tab') {
                 event.preventDefault();
                 const fpsEl = document.getElementById('fps-counter');
@@ -4631,11 +4709,26 @@
             }
             orbitPlatforms.length = 0;
 
+            // Remove plataformas que caem
+            for (const p of crumblingPlatforms) {
+                scene.remove(p.mesh);
+                scene.remove(p.barrier);
+            }
+            crumblingPlatforms.length = 0;
+
             checkpoints.forEach(c => scene.remove(c));
             checkpoints.length = 0;
 
+            // Remove decorações (corais, algas) da fase anterior
+            decorations.forEach(d => scene.remove(d));
+            decorations.length = 0;
+
             // Recria a fase de raiz
-            buildLevel();
+            if (currentLevel === 2) {
+                buildLevel2();
+            } else {
+                buildLevel();
+            }
 
             // Limpar pergaminho e halo se existirem
             if (scrollMesh) { scene.remove(scrollMesh); scrollMesh = null; }
@@ -4658,6 +4751,383 @@
             _cachedBoxes.clear();
             const _allForCache2 = [...new Set([...collidableObjects, ...floorObjects])];
             for (const obj of _allForCache2) getCachedBox(obj);
+        }
+
+        function _clearLevelObjects() {
+            collectibles.forEach(c => scene.remove(c));
+            collectibles.length = 0;
+            enemies.forEach(e => scene.remove(e));
+            enemies.length = 0;
+            gates.forEach(g => {
+                scene.remove(g);
+                const idx = collidableObjects.indexOf(g);
+                if (idx > -1) collidableObjects.splice(idx, 1);
+            });
+            gates.length = 0;
+            for (const p of movingPlatforms) {
+                scene.remove(p.mesh); scene.remove(p.barrier);
+                const fi = floorObjects.indexOf(p.mesh); if (fi > -1) floorObjects.splice(fi, 1);
+                const ci = collidableObjects.indexOf(p.barrier); if (ci > -1) collidableObjects.splice(ci, 1);
+            }
+            movingPlatforms.length = 0;
+            for (const p of orbitPlatforms) {
+                scene.remove(p.mesh); scene.remove(p.barrier);
+                const fi = floorObjects.indexOf(p.mesh); if (fi > -1) floorObjects.splice(fi, 1);
+                const ci = collidableObjects.indexOf(p.barrier); if (ci > -1) collidableObjects.splice(ci, 1);
+            }
+            orbitPlatforms.length = 0;
+            for (const p of crumblingPlatforms) { scene.remove(p.mesh); scene.remove(p.barrier); }
+            crumblingPlatforms.length = 0;
+            checkpoints.forEach(c => scene.remove(c));
+            checkpoints.length = 0;
+            // Remove decorações (corais, algas) da fase anterior
+            decorations.forEach(d => scene.remove(d));
+            decorations.length = 0;
+            // Remove plataformas estáticas e chão da fase anterior
+            floorObjects.forEach(f => scene.remove(f));
+            floorObjects.length = 0;
+            collidableObjects.forEach(c => scene.remove(c));
+            collidableObjects.length = 0;
+            if (scrollMesh) { scene.remove(scrollMesh); scrollMesh = null; }
+            if (scrollHalo) { scene.remove(scrollHalo); scrollHalo = null; }
+            _scrollOriginalPositions.length = 0;
+            _scrollClock = 0;
+        }
+
+        function goToNextLevel() {
+            document.getElementById('results-screen').style.display = 'none';
+            document.getElementById('victory-dance-label').style.display = 'none';
+            if (FL_characterInner) FL_characterInner.rotation.y = 0;
+            _winDanceTimer = 0;
+
+            showLoadingScreen(() => {
+                currentLevel = 2;
+                // Reset jogador
+                player.position.set(0, 25, 0);
+                velocity.set(0, 0, 0);
+                coins = 0;
+                keys = 0;
+                health = MAX_HEALTH;
+                voidDamageCooldown = 0;
+                playerHitCooldown = 0;
+                FL_isDead = false;
+                FL_deathTimer = -1;
+                FL_deathByEnemy = false;
+                FL_deathPivot.rotation.x = 0;
+                FL_bodyGroup.rotation.x = 0;
+                FL_bodyGroup.rotation.z = 0;
+                FL_deathStars.visible = false;
+                FL_deathStars.rotation.y = 0;
+                checkpointPos.set(0, 25, 0);
+                lastInputTime = performance.now() / 1000;
+                isAFK = false;
+                updateHUD();
+
+                _clearLevelObjects();
+                buildLevel2();
+
+                _cachedBoxes.clear();
+                const _allForCacheLv2 = [...new Set([...collidableObjects, ...floorObjects])];
+                for (const obj of _allForCacheLv2) getCachedBox(obj);
+
+                _music.play('level1.mp3');
+                currentState = GAME_STATE.PLAYING;
+            });
+        }
+
+        // ===== PLATAFORMAS QUE CAEM =====
+        // Caem 1s após o jogador pisar; voltam à posição original após 3s.
+        function createCrumblingPlatform(x, y, z, w, d, color) {
+            const h = 1.2;
+            const cornerRadius = Math.min(1.2, w / 4, d / 4);
+            const geo = createRoundedTopGeo(w, h, d, cornerRadius);
+            const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.75, metalness: 0.1 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            mesh.position.set(x, y, z);
+            scene.add(mesh);
+
+            const barrierGeo = new THREE.BoxGeometry(w - 0.2, h, d - 0.2);
+            const barrier = new THREE.Mesh(barrierGeo, new THREE.MeshBasicMaterial({ visible: false }));
+            barrier.position.set(x, y, z);
+            scene.add(barrier);
+
+            floorObjects.push(mesh);
+            collidableObjects.push(barrier);
+
+            const data = {
+                mesh, barrier,
+                originX: x, originY: y, originZ: z,
+                state: 'idle',   // 'idle' | 'shaking' | 'falling' | 'respawning'
+                timer: 0,
+                fallY: y,        // posição Y actual enquanto cai
+            };
+            crumblingPlatforms.push(data);
+            return data;
+        }
+
+        function updateCrumblingPlatforms(delta) {
+            const SHAKE_TIME  = 0.7;   // tempo a tremer antes de cair
+            const RESPAWN_TIME = 3.0;  // tempo fora até voltar
+            const FALL_SPEED  = 28;    // velocidade de queda
+
+            // Detectar se o jogador está em cima de alguma plataforma instável
+            const playerBox = getPlayerAABB(player.position);
+            const feetY = playerBox.min.y;
+
+            for (const p of crumblingPlatforms) {
+                const pBox = getCachedBox(p.mesh);
+
+                // Detectar jogador em cima
+                const onTop = (
+                    isGrounded &&
+                    player.position.x + 0.6 > pBox.min.x && player.position.x - 0.6 < pBox.max.x &&
+                    player.position.z + 0.6 > pBox.min.z && player.position.z - 0.6 < pBox.max.z &&
+                    Math.abs(feetY - pBox.max.y) < 0.35
+                );
+
+                if (p.state === 'idle') {
+                    if (onTop) {
+                        p.state = 'shaking';
+                        p.timer = 0;
+                    }
+
+                } else if (p.state === 'shaking') {
+                    p.timer += delta;
+                    // Tremor visual: sacudir no eixo X
+                    const shake = Math.sin(p.timer * 60) * (0.08 * (p.timer / SHAKE_TIME));
+                    p.mesh.position.x = p.originX + shake;
+                    p.barrier.position.x = p.originX + shake;
+
+                    if (p.timer >= SHAKE_TIME) {
+                        p.state = 'falling';
+                        p.timer = 0;
+                        p.fallY = p.mesh.position.y;
+                        // Remove da colisão para o jogador poder cair com ela sem travar
+                        const fi = floorObjects.indexOf(p.mesh);
+                        if (fi !== -1) floorObjects.splice(fi, 1);
+                        const ci = collidableObjects.indexOf(p.barrier);
+                        if (ci !== -1) collidableObjects.splice(ci, 1);
+                        _cachedBoxes.delete(p.mesh);
+                        _cachedBoxes.delete(p.barrier);
+                    }
+
+                } else if (p.state === 'falling') {
+                    p.timer += delta;
+                    p.fallY -= FALL_SPEED * delta;
+                    p.mesh.position.x = p.originX;
+                    p.mesh.position.y = p.fallY;
+                    p.barrier.position.y = p.fallY;
+                    // Escurece e desaparece
+                    const fade = Math.max(0, 1 - p.timer * 1.5);
+                    p.mesh.material.opacity = fade;
+                    p.mesh.material.transparent = true;
+                    if (p.timer >= RESPAWN_TIME) {
+                        p.state = 'respawning';
+                        p.timer = 0;
+                        // Esconde mesh enquanto reaparece
+                        p.mesh.visible = false;
+                        p.barrier.position.set(p.originX, p.originY, p.originZ);
+                    }
+
+                } else if (p.state === 'respawning') {
+                    p.timer += delta;
+                    // Pisca antes de reaparecer
+                    p.mesh.visible = Math.floor(p.timer * 6) % 2 === 0;
+                    p.mesh.position.set(p.originX, p.originY, p.originZ);
+                    p.mesh.material.opacity = 1;
+                    p.mesh.material.transparent = false;
+                    if (p.timer >= 0.8) {
+                        p.state = 'idle';
+                        p.timer = 0;
+                        p.mesh.visible = true;
+                        // Volta a ser colidível
+                        floorObjects.push(p.mesh);
+                        collidableObjects.push(p.barrier);
+                        _cachedBoxes.delete(p.mesh);
+                        _cachedBoxes.delete(p.barrier);
+                    }
+                }
+            }
+        }
+
+        function buildLevel2() {
+            // ── FASE 2: O ARQUIPÉLAGO DAS RUÍNAS ──────────────────────────────
+            // REGRAS FÍSICAS:
+            //   topo de createPlatform(x,y,z,w,H,d) = y + H/2  (H=40 → topo = y+20)
+            //   gap horizontal seguro entre bordas: ≤12u
+            //   gap vertical seguro entre topos: ≤4u (duplo salto = 6.6u máx)
+            //   decorações: XZ dentro dos limites da plataforma, Y = topo da plat.
+            //   plataformas estáticas: y = -20 para base tocar o chão (y=-40,topo=-30)
+            //     → com H=40: base = y-20 = -40 → topo = y+20 = 0... incorreto
+            //     → usar y=-20 → base=-40, topo=0; para topo=15 usar y=-5 (base=-25, flutua 5u acima do chão)
+            //   OK flutuar ligeiramente — o chão é decorativo, plataformas são ilhas.
+            // ──────────────────────────────────────────────────────────────────
+
+            // Solo base igual ao level 1
+            const groundGeo = new THREE.CylinderGeometry(1800, 1800, 20, 64);
+            const groundMat = new THREE.MeshStandardMaterial({ color: COLORS.sand, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.position.y = -40;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            floorObjects.push(ground);
+
+            // ── ZONA 1: ILHA DE CHEGADA ─────────────────────────────────────
+            // createPlatform(0,-5,0,28,40,28) → topo=15, base=-25
+            createPlatform(0, -5, 0, 28, 40, 28, COLORS.sandDark, 4);
+            createCheckpoint(0, 15, 0);
+            spawnCoin(0, 16.5, 0, 10);
+            // Decorações: X±14, Z±14 → usar X=±6, Z=±5
+            createDecoration(-6, 15, -5, 'coralPink');
+            createDecoration( 6, 15,  5, 'kelp');
+
+            // ── ZONA 2: PEDRAS SALTANTES ─────────────────────────────────────
+            // Plataformas de 9x9, topo=15. Gap entre bordas: centro-a-centro 16u → borda-a-borda 7u ✓
+            createPlatform( 0, -5,  -16, 9, 40, 9, COLORS.rock);
+            createPlatform( 0, -5,  -32, 9, 40, 9, COLORS.rock);
+            createPlatform( 0, -5,  -48, 9, 40, 9, COLORS.rock);
+            spawnCoin(0, 16.5, -32, 5);
+            // Zig-zag: X±7 (dentro do alcance com diagonal)
+            createPlatform( 7, -5,  -64, 9, 40, 9, COLORS.rock);
+            createPlatform(-7, -5,  -80, 9, 40, 9, COLORS.rock);
+            createPlatform( 0, -5,  -96, 9, 40, 9, COLORS.rock);
+            spawnCoin( 7, 16.5, -64, 5);
+            spawnCoin(-7, 16.5, -80, 5);
+
+            // Ilha de respiro  (topo=15, X±7, Z -121..-107)
+            createPlatform(0, -5, -114, 14, 40, 14, COLORS.sandDark, 4);
+            createCheckpoint(0, 15, -114);
+            spawnCoin(0, 16.5, -114, 10);
+            createDecoration( 4, 15, -110, 'coralYellow');
+            createDecoration(-4, 15, -118, 'kelp');
+
+            // ── ZONA 3: CORREDOR OSCILANTE ───────────────────────────────────
+            // Móveis a Y=15 (centro da plataforma móvel h=1.2), topo≈15.6
+            // Gap de 16u em Z desde Z=-114 (borda em -121) → primeiro em Z=-130 (borda -134.5, gap=7.5u ✓)
+            createMovingPlatform(0, 15, -130, 9, 9, 0xa08060, 'x', 6, 0.28, 0.00);
+            createMovingPlatform(0, 15, -146, 9, 9, 0xa08060, 'x', 6, 0.28, 0.50);
+            createMovingPlatform(0, 15, -162, 9, 9, 0xc4a86e, 'y', 3, 0.22, 0.25);
+            createMovingPlatform(0, 15, -178, 9, 9, 0xc4a86e, 'z', 4, 0.22, 0.75);
+
+            // Ilha de respiro  (topo=15, X±8, Z -204..-188)
+            createPlatform(0, -5, -196, 16, 40, 16, COLORS.sandDark, 4);
+            createCheckpoint(0, 15, -196);
+            spawnCoin(0, 16.5, -196, 20);
+            spawnByteBot( 5, 15, -190, 16, 16, 0, -196);
+            spawnByteBot(-5, 15, -202, 16, 16, 0, -196);
+            createDecoration(-5, 15, -200, 'kelp');
+            createDecoration( 5, 15, -192, 'coralPink');
+
+            // ── ZONA 4: CRUMBLING — PRIMEIRA SEQUÊNCIA ───────────────────────
+            // Crumbling h=1.2, topo = y+0.6. Para alinhar com plat. anterior (topo=15):
+            // crumbling y=14.4 → topo=15. Usamos y=15 (topo=15.6, 0.6u acima — OK).
+            // Degrau de transição estático
+            createPlatform(0, -5, -212, 8, 40, 8, COLORS.rock);
+            // Sequência linear (sem zig-zag) — gaps de 14u em Z entre centros
+            createCrumblingPlatform( 0, 15, -226, 9, 9, 0x8b3a2a);
+            createCrumblingPlatform( 0, 15, -240, 9, 9, 0x8b3a2a);
+            createCrumblingPlatform( 0, 15, -254, 9, 9, 0x8b3a2a);
+            createCrumblingPlatform( 0, 15, -268, 9, 9, 0x8b3a2a);
+
+            // Ilha de respiro  (topo=15, X±8, Z -292..-276)
+            createPlatform(0, -5, -284, 16, 40, 16, COLORS.sandDark, 4);
+            createCheckpoint(0, 15, -284);
+            spawnCoin(0, 16.5, -226, 5);
+            spawnCoin(0, 16.5, -240, 5);
+            spawnCoin(0, 16.5, -254, 5);
+            spawnCoin(0, 16.5, -268, 5);
+            spawnCoin(0, 16.5, -284, 20);
+            createDecoration(-5, 15, -288, 'coralYellow');
+            createDecoration( 5, 15, -280, 'kelp');
+
+            // ── ZONA 5: ÓRBITAS ──────────────────────────────────────────────
+            // OrbitPlatform cy=21, radius=9 → varia Y de 12 a 30.
+            // Topo anterior=15 (Z=-284). Primeira órbita min-Y≈12 → jogador pode cair nela.
+            // Gaps de 14u em Z entre centros.
+            createOrbitPlatform(0, 21, -300, 9, 8, 0x9a8070, 9, 0.09, 0.00);
+            createOrbitPlatform(0, 21, -314, 9, 8, 0x9a8070, 9, 0.09, 0.33);
+            createOrbitPlatform(0, 21, -328, 9, 8, 0x9a8070, 9, 0.09, 0.66);
+            createOrbitPlatform(0, 21, -342, 9, 8, 0x9a8070, 9, 0.10, 0.50);
+            spawnCoin(0, 22.5, -300, 5);
+            spawnCoin(0, 22.5, -314, 5);
+            spawnCoin(0, 22.5, -328, 5);
+            spawnCoin(0, 22.5, -342, 5);
+
+            // Ilha de respiro  (topo=15, X±9, Z -367..-349)
+            // Usamos y=-5 para topo=15, igual ao resto da fase — não eleva o jogador
+            createPlatform(0, -5, -358, 18, 40, 18, COLORS.sandDark, 4);
+            createCheckpoint(0, 15, -358);
+            spawnByteBot( 5, 15, -351, 18, 18, 0, -358);
+            spawnByteBot(-5, 15, -365, 18, 18, 0, -358);
+            spawnCoin(0, 16.5, -358, 20);
+            createDecoration( 6, 15, -354, 'coralPink');
+            createDecoration(-6, 15, -362, 'coralYellow');
+
+            // ── ZONA 6: SUBIDA GRADUAL (máx +3u por degrau) ─────────────────
+            // Topo anterior=15 (Z=-358). Subimos 3u de cada vez.
+            // Crumbling: y = topo_desejado - 0.6. Para topo=18: y=17.4 ≈ 17
+            // Móvel eixo Y: oscila ±3u → pode subir/descer 3u extra → altura variável
+            //   Para alcançar topo=18 desde topo=15: gap=3u < 4u max ✓
+            createCrumblingPlatform(0, 17, -374, 9, 9, 0x8b3a2a);   // topo≈17.6
+            createMovingPlatform(   0, 20, -390, 8, 8, 0xa08060, 'y', 3, 0.20, 0.0); // centro=20, ±3 → topo 17..23
+            createCrumblingPlatform(0, 20, -406, 8, 8, 0x8b3a2a);   // topo≈20.6
+            createMovingPlatform(   0, 23, -422, 8, 8, 0xa08060, 'x', 5, 0.20, 0.5); // centro=23, topo≈23.6
+            createCrumblingPlatform(0, 23, -438, 8, 8, 0x8b3a2a);   // topo≈23.6
+
+            // Ilha de chegada da subida  (topo = 4+20 = 24, X±8, Z -462..-446)
+            createPlatform(0, 4, -454, 16, 40, 16, COLORS.sandDark, 4);
+            createCheckpoint(0, 24, -454);
+            spawnCoin(0, 18.6, -374, 5);
+            spawnCoin(0, 21.6, -390, 5);
+            spawnCoin(0, 21.6, -406, 5);
+            spawnCoin(0, 24.6, -422, 5);
+            spawnCoin(0, 24.6, -438, 5);
+            spawnCoin(0, 25.5, -454, 20);
+            createDecoration(-5, 24, -450, 'kelp');
+            createDecoration( 5, 24, -458, 'coralPink');
+
+            // ── ZONA 7: ARENA DO GUARDIÃO ─────────────────────────────────────
+            // Plataforma grande (topo = 4+20 = 24). SEM crumbling em X — só inimigos.
+            // (topo=24, X±24, Z -490..-438... mas usamos Z=-490 centro)
+            createPlatform(0, 4, -490, 48, 40, 48, COLORS.sandDark, 4);  // topo=24, X±24, Z -514..-466
+            spawnByteBot(-12, 24, -476, 48, 48, 0, -490);
+            spawnByteBot( 12, 24, -476, 48, 48, 0, -490);
+            spawnByteBot(-12, 24, -504, 48, 48, 0, -490);
+            spawnByteBot( 12, 24, -504, 48, 48, 0, -490);
+            spawnByteBot(  0, 24, -490, 48, 48, 0, -490);
+            spawnCoin(-16, 25.5, -490, 20);
+            spawnCoin( 16, 25.5, -490, 20);
+            spawnCoin(  0, 25.5, -475, 20);
+            // Decorações nos cantos (dentro X±24, Z -514..-466)
+            createDecoration(-18, 24, -470, 'coralYellow');
+            createDecoration( 18, 24, -470, 'kelp');
+            createDecoration(-18, 24, -510, 'coralPink');
+            createDecoration( 18, 24, -510, 'coralYellow');
+
+            // ── ZONA 8: TORRE FINAL ──────────────────────────────────────────
+            // Saímos de topo=24 (Z=-490). Subimos 3u por degrau. Scroll no topo.
+            // Gap Z de 16u entre centros.
+            createMovingPlatform(0, 24, -528, 9, 9, 0xc4a86e, 'y', 3, 0.25, 0.0);  // gap Z=14u ✓
+            createOrbitPlatform( 0, 27, -544, 8, 8, 0x9a8070, 3, 0.12, 0.00);       // +3u
+            createMovingPlatform(0, 30, -560, 8, 8, 0xa08060, 'x', 5, 0.22, 0.25);  // +3u
+            createOrbitPlatform( 0, 33, -576, 8, 8, 0x9a8070, 3, 0.12, 0.50);       // +3u
+            createMovingPlatform(0, 36, -592, 8, 8, 0xa08060, 'x', 5, 0.22, 0.75);  // +3u
+            // Última crumbling: topo≈37.6 (só +1.6u acima da plat anterior topo≈36.6) ✓
+            createCrumblingPlatform(0, 37, -608, 10, 10, 0x8b3a2a);
+
+            // Topo da torre  (topo = 18+20 = 38, X±9, Z -633..-615)
+            // Crumbling topo≈37.6, torre topo=38 → gap vertical 0.4u ✓
+            createPlatform(0, 18, -624, 18, 40, 18, COLORS.sandDark, 4);
+            createCheckpoint(0, 38, -624);
+            spawnCoin( 0, 39.5, -624, 20);
+            spawnCoin( 6, 39.5, -618, 10);
+            spawnCoin(-6, 39.5, -630, 10);
+            createDecoration( 6, 38, -619, 'coralPink');
+            createDecoration(-6, 38, -619, 'coralYellow');
+            createDecoration( 0, 38, -629, 'kelp');
+            spawnScroll(0, 38, -624);
         }
 
         // ===== INIMIGOS BYTEBOT =====
@@ -5094,10 +5564,9 @@
         function getPlayerAABB(pos) {
             const half = 0.72; // metade da largura do hitbox
             const H    = 2.5;  // altura do hitbox
-            return new THREE.Box3(
-                new THREE.Vector3(pos.x - half, pos.y,       pos.z - half),
-                new THREE.Vector3(pos.x + half, pos.y + H,   pos.z + half)
-            );
+            _tmpBox3a.min.set(pos.x - half, pos.y,     pos.z - half);
+            _tmpBox3a.max.set(pos.x + half, pos.y + H, pos.z + half);
+            return _tmpBox3a;
         }
 
         // Dado overlap num eixo, devolve a penetração mínima com sinal
@@ -5213,7 +5682,7 @@
             // Cada sub-passo move apenas X, depois apenas Y, depois apenas Z,
             // resolvendo colisões separadamente em cada eixo — técnica padrão de plataformers.
 
-            const totalVel = new THREE.Vector3(velocity.x * delta, velocity.y * delta, velocity.z * delta);
+            const totalVel = _tmpVec3a.set(velocity.x * delta, velocity.y * delta, velocity.z * delta);
             const SUBSTEPS  = 3;
             const subDelta  = 1 / SUBSTEPS;
 
@@ -5224,10 +5693,13 @@
             const allCollidable = collidableObjects;
             const allFloor      = floorObjects;
             // Conjunto unificado para colisão geral (sem duplicatas)
-            const allObjects = [...new Set([...allFloor, ...allCollidable])];
+            _allObjects.length = 0;
+            for (const o of allFloor)      { if (!_allObjects.includes(o)) _allObjects.push(o); }
+            for (const o of allCollidable) { if (!_allObjects.includes(o)) _allObjects.push(o); }
+            const allObjects = _allObjects;
 
             for (let step = 0; step < SUBSTEPS; step++) {
-                const stepVel = totalVel.clone().multiplyScalar(subDelta);
+                const stepVel = _tmpVec3b.copy(totalVel).multiplyScalar(subDelta);
 
                 // ── 3a. Mover em X ──
                 pos.x += stepVel.x;
@@ -5242,7 +5714,7 @@
                         if (pos.y + 0.05 < objBox.max.y) {
                             pos.x += res.push;
                             velocity.x = 0;
-                            box.translate(new THREE.Vector3(res.push, 0, 0));
+                            box.min.x += res.push; box.max.x += res.push;
                         }
                     }
                 }
@@ -5259,7 +5731,7 @@
                         if (pos.y + 0.05 < objBox.max.y) {
                             pos.z += res.push;
                             velocity.z = 0;
-                            box.translate(new THREE.Vector3(0, 0, res.push));
+                            box.min.z += res.push; box.max.z += res.push;
                         }
                     }
                 }
@@ -5292,7 +5764,7 @@
                             pos.y += res.push;
                             if (velocity.y > 0) velocity.y = 0;
                         }
-                        box.translate(new THREE.Vector3(0, res.push, 0));
+                        box.min.y += res.push; box.max.y += res.push;
                     }
                 }
             }
@@ -5338,16 +5810,15 @@
 
         function updateCamera() {
             // A câmara segue a personagem com uma orientação fixa e fluida
-            const cameraOffset = new THREE.Vector3(0, 12, 22.25);
-            const targetPos = player.position.clone().add(cameraOffset);
+            _tmpVec3a.set(0, 12, 22.25).add(player.position);
             
             // Interpolação suave de movimento
-            camera.position.lerp(targetPos, 0.1);
+            camera.position.lerp(_tmpVec3a, 0.1);
             
             // Aponta a câmara ligeiramente à frente da personagem
-            const lookAtPos = player.position.clone();
-            lookAtPos.y += 2; 
-            camera.lookAt(lookAtPos);
+            _tmpVec3b.copy(player.position);
+            _tmpVec3b.y += 2; 
+            camera.lookAt(_tmpVec3b);
 
             // A shadow camera segue o jogador para garantir sombras em toda a fase
             dirLight.position.set(
@@ -5456,10 +5927,12 @@
             requestAnimationFrame(animate);
 
             const delta = Math.min(clock.getDelta(), 0.1); 
+            gameTime += delta;
 
             if (currentState === GAME_STATE.PLAYING) {
                 updateMovingPlatforms(delta);
                 updateOrbitPlatforms();
+                updateCrumblingPlatforms(delta);
                 updateCheckpoints(delta);
                 updateSmokeParticles(delta);
                 updateComboTexts(delta);

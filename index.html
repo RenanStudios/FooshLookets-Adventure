@@ -2298,6 +2298,7 @@
         // Objetos reutilizáveis para evitar alocações por frame (reduz freezes do GC)
         const _tmpVec3a  = new THREE.Vector3();
         const _tmpVec3b  = new THREE.Vector3();
+        const _tmpVec3c  = new THREE.Vector3();
         const _tmpBox3a  = new THREE.Box3();
         const _tmpBox3b  = new THREE.Box3();
         const _allObjects = []; // array reutilizado em updatePhysics
@@ -2324,18 +2325,27 @@
             // Cena
             scene = new THREE.Scene();
             scene.background = new THREE.Color(COLORS.bgHaze);
-            scene.fog = new THREE.Fog(COLORS.bgHaze, 100, 300); // Névoa para disfarçar o limite do mapa
+            // Névoa para disfarçar o limite do mapa — valores iniciais (ajustados por applyGraphics)
+            const _initFog = (GRAPHICS_PRESETS[_pendingGraphics] || GRAPHICS_PRESETS.medium).fog;
+            scene.fog = new THREE.Fog(COLORS.bgHaze, _initFog[0], _initFog[1]);
 
             // Câmara
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            
+            // O "far" da câmara acompanha a distância de render da qualidade escolhida:
+            // não há razão para a GPU processar geometria que está totalmente escondida pela névoa.
+            const _initRenderDist = (GRAPHICS_PRESETS[_pendingGraphics] || GRAPHICS_PRESETS.medium).renderDistance;
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, _initRenderDist);
+
             // Renderizador
-            renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
             const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 900;
+            renderer = new THREE.WebGLRenderer({
+                antialias: (GRAPHICS_PRESETS[_pendingGraphics] || GRAPHICS_PRESETS.medium).antialias && !isMobile,
+                logarithmicDepthBuffer: true,
+                powerPreference: 'high-performance'
+            });
             renderer.setPixelRatio(isMobile ? Math.min(window.devicePixelRatio * 0.35, 0.6) : Math.min(window.devicePixelRatio * 0.6, 1.0));
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFShadowMap;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             document.getElementById('game-container').appendChild(renderer.domElement);
 
             // Iluminação (Suave e estilo desenho animado)
@@ -3815,10 +3825,15 @@
                 p.mesh.rotation.x = 0;
                 p.barrier.position.set(p.cx, ny, nz);
 
-                _cachedBoxes.delete(p.mesh);
-                _cachedBoxes.delete(p.barrier);
-                _cachedBoxes.set(p.mesh,    new THREE.Box3().setFromObject(p.mesh));
-                _cachedBoxes.set(p.barrier, new THREE.Box3().setFromObject(p.barrier));
+                // Em vez de recriar o Box3 do zero (Box3().setFromObject percorre a
+                // geometria e aloca objetos novos), apenas deslocamos o box já em cache
+                // pelo delta de movimento — sem alocação, sem travessia de geometria.
+                const mBox = getCachedBox(p.mesh);
+                mBox.min.y += p.dy; mBox.max.y += p.dy;
+                mBox.min.z += p.dz; mBox.max.z += p.dz;
+                const bBox = getCachedBox(p.barrier);
+                bBox.min.y += p.dy; bBox.max.y += p.dy;
+                bBox.min.z += p.dz; bBox.max.z += p.dz;
             }
 
             // Arrastar jogador se estiver sobre uma plataforma em órbita (vertical)
@@ -4070,7 +4085,11 @@
                 mesh = new THREE.Mesh(geo, mat);
                 mesh.position.set(x, y + 1, z);
             }
-            mesh.castShadow = true;
+            // Sombra inicial já respeita a qualidade gráfica atual (evita criar sombras
+            // caras em níveis baixo/médio e só depois desativá-las em applyGraphics)
+            const _decoShadowsOn = (_pendingGraphics === 'ultra' || _pendingGraphics === 'high');
+            mesh.castShadow = _decoShadowsOn;
+            mesh.receiveShadow = _decoShadowsOn;
             scene.add(mesh);
             decorations.push(mesh);
             if(type === 'rock') collidableObjects.push(mesh); // Apenas as pedras têm colisão para evitar travamentos indesejados
@@ -4216,7 +4235,9 @@
                 pa.setZ(i, waveZ);
             }
             pa.needsUpdate = true;
-            scrollMesh.geometry.computeVertexNormals();
+            // computeVertexNormals() removido daqui: era recalculado a cada frame
+            // (percorre toda a geometria), mas a ondulação é sutil e o material já
+            // não depende de precisão de normal para este efeito — custo sem ganho visual.
 
             // Flutuação vertical
             scrollMesh.position.y = scrollMesh.userData.originY + Math.sin(t * 1.0) * 0.35;
@@ -4493,10 +4514,16 @@
                 p.mesh.position.set(nx, ny, nz);
                 p.barrier.position.set(nx, ny, nz);
 
-                _cachedBoxes.delete(p.mesh);
-                _cachedBoxes.delete(p.barrier);
-                _cachedBoxes.set(p.mesh,    new THREE.Box3().setFromObject(p.mesh));
-                _cachedBoxes.set(p.barrier, new THREE.Box3().setFromObject(p.barrier));
+                // Desloca o Box3 já em cache pelo delta do movimento em vez de
+                // recriar com setFromObject (caro: percorre geometria e aloca).
+                const mBox = getCachedBox(p.mesh);
+                mBox.min.x += p.dx; mBox.max.x += p.dx;
+                mBox.min.y += p.dy; mBox.max.y += p.dy;
+                mBox.min.z += p.dz; mBox.max.z += p.dz;
+                const bBox = getCachedBox(p.barrier);
+                bBox.min.x += p.dx; bBox.max.x += p.dx;
+                bBox.min.y += p.dy; bBox.max.y += p.dy;
+                bBox.min.z += p.dz; bBox.max.z += p.dz;
             }
 
             // Arrastar o jogador se estiver apoiado sobre uma plataforma móvel
@@ -5624,7 +5651,7 @@
                 velocity.z = 0;
                 velocity.y -= gravity * delta;
                 if (velocity.y < terminalVelocity) velocity.y = terminalVelocity;
-                const pos = player.position.clone();
+                const pos = _tmpVec3c.copy(player.position);
                 pos.y += velocity.y * delta;
                 // Colisão vertical simples para não afundar no chão
                 for (const obj of floorObjects) {
@@ -5687,7 +5714,7 @@
             const subDelta  = 1 / SUBSTEPS;
 
             isGrounded = false;
-            const pos = player.position.clone();
+            const pos = _tmpVec3c.copy(player.position);
 
             // Todos os objetos estáticos e colidíveis para este frame
             const allCollidable = collidableObjects;
@@ -5876,13 +5903,14 @@
                 }
             }
 
-            // Animação do balanço das algas
-            scene.traverse((obj) => {
-                if(obj.userData.isKelp) {
+            // Animação do balanço das algas — itera só nas decorações (array já existente)
+            // em vez de percorrer toda a árvore da cena (scene.traverse) a cada frame.
+            for (const obj of decorations) {
+                if (obj.userData.isKelp) {
                     obj.rotation.z = Math.sin(clock.elapsedTime * 2 + obj.position.x) * 0.1;
                     obj.rotation.x = Math.cos(clock.elapsedTime * 1.5 + obj.position.z) * 0.1;
                 }
-            });
+            }
         }
 
         function checkGates() {
@@ -5915,8 +5943,10 @@
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
-            const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 900;
-            renderer.setPixelRatio(isMobile ? Math.min(window.devicePixelRatio * 0.35, 0.6) : Math.min(window.devicePixelRatio * 0.6, 1.0));
+            // Reaplica a resolução escolhida pelo jogador (em vez de sobrescrever
+            // sempre com um valor fixo, o que ignorava a opção "Resolução" do menu
+            // sempre que a janela mudava de tamanho/orientação)
+            applyResolution(_pendingResolution);
         }
 
         // ─── FPS tracking ───
@@ -5970,6 +6000,14 @@
                 updateEnemies(delta);
                 checkGates();
                 updateFooshLooketAnimation(delta, clock.elapsedTime);
+
+                // Culling de distância: não precisa de correr todos os frames,
+                // a posição da câmara não muda o suficiente em poucos ms para justificar o custo.
+                _cullTimer += delta;
+                if (_cullTimer >= CULL_INTERVAL) {
+                    _cullTimer = 0;
+                    cullDistantObjects();
+                }
 
                 // Piscar o jogador após respawn (só quando não está morto)
                 if (respawnBlinkTimer > 0 && !FL_isDead) {
@@ -6323,6 +6361,21 @@
         // Configurações — pixel ratio / resolução
         let _sfxVolume = 0.8; // acessível pelas funções de som
 
+        // ===== PRESETS DE QUALIDADE GRÁFICA =====
+        // Tabela única e centralizada: cada nível de gráficos controla, de forma coerente,
+        // a névoa (fog), a distância de render da câmara/objetos (culling), sombras,
+        // antialiasing e densidade de partículas. Quanto mais baixo o nível, menor o
+        // alcance visual — e, por causa do culling de distância (ver cullDistantObjects),
+        // objetos fora desse alcance deixam de ser sequer processados pela GPU, não só
+        // escondidos visualmente pela névoa.
+        const GRAPHICS_PRESETS = {
+            //                fog:[near,far]   renderDistance  shadows  shadowMapSize  antialias  cullMargin
+            ultra:  { fog: [150, 500], renderDistance: 600, shadows: true,  shadowMapSize: 2048, antialias: true,  cullMargin: 60 },
+            high:   { fog: [100, 350], renderDistance: 420, shadows: true,  shadowMapSize: 1024, antialias: true,  cullMargin: 50 },
+            medium: { fog: [80,  250], renderDistance: 300, shadows: true,  shadowMapSize: 512,  antialias: false, cullMargin: 40 },
+            low:    { fog: [40,  120], renderDistance: 150, shadows: false, shadowMapSize: 256,  antialias: false, cullMargin: 20 }
+        };
+
         // Guarda as configurações escolhidas antes do jogo iniciar
         let _pendingResolution = 'medium';
         let _pendingGraphics   = 'medium';
@@ -6348,34 +6401,98 @@
         }
         function applyGraphics(val) {
             _pendingGraphics = val;
+            const preset = GRAPHICS_PRESETS[val] || GRAPHICS_PRESETS.medium;
 
             // --- Partículas por spawn: controla quantidade ---
             // Guardada numa variável global para spawnParticles usar
             window._graphicsParticleCount = { ultra: 16, high: 10, medium: 6, low: 2 }[val] || 6;
 
+            // --- Margem de culling de distância (usada em cullDistantObjects, fora do render) ---
+            window._graphicsCullDistance = preset.renderDistance - preset.cullMargin;
+
             if (!renderer) return;
 
+            // --- Antialiasing ---
+            // O antialias do WebGLRenderer não pode ser alterado depois de criado; nos níveis
+            // mais baixos compensamos desativando o MSAA já na criação (ver init()) e aqui
+            // ajustamos apenas o que pode mudar dinamicamente.
+
             // --- Sombras ---
-            const shadowEnabled = (val !== 'low');
+            const shadowEnabled = preset.shadows;
             renderer.shadowMap.enabled = shadowEnabled;
+            renderer.shadowMap.type = (val === 'ultra' || val === 'high') ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
 
             if (dirLight) {
                 dirLight.castShadow = shadowEnabled;
 
                 // Tamanho do mapa de sombra: mais alto = sombras mais nítidas e pesadas
-                const shadowMapSizes = { ultra: 2048, high: 1024, medium: 512, low: 256 };
-                const smSize = shadowMapSizes[val] || 512;
+                const smSize = preset.shadowMapSize;
                 dirLight.shadow.mapSize.width  = smSize;
                 dirLight.shadow.mapSize.height = smSize;
                 dirLight.shadow.map = null; // força Three.js a recriar o shadow map
             }
 
-            // --- Névoa (distância de render) ---
+            // Sombra de cada objeto individual (decorações são as mais numerosas e
+            // as que menos compensam o custo de sombra a baixa/média qualidade)
+            const decoShadows = (val === 'ultra' || val === 'high');
+            for (const d of decorations) {
+                d.castShadow    = decoShadows;
+                d.receiveShadow = decoShadows;
+            }
+
+            // --- Névoa (visual) + distância de render da câmara (culling real) ---
+            // Estes dois valores ficam sempre alinhados: o "far" da câmara nunca vai
+            // muito além do alcance em que a névoa já esconde tudo, para a GPU não
+            // perder tempo a desenhar geometria invisível.
+            const [near, far] = preset.fog;
             if (scene && scene.fog) {
-                const fogSettings = { ultra: [150, 500], high: [100, 350], medium: [80, 250], low: [50, 150] };
-                const [near, far] = fogSettings[val] || [80, 250];
                 scene.fog.near = near;
                 scene.fog.far  = far;
+            }
+            if (camera) {
+                camera.far = preset.renderDistance;
+                camera.updateProjectionMatrix();
+            }
+
+            // Aplica imediatamente o culling com a nova distância (em vez de esperar o próximo frame)
+            cullDistantObjects();
+        }
+
+        // ===== CULLING DE DISTÂNCIA =====
+        // Diferente da névoa (que só disfarça visualmente), esta função desativa
+        // (object.visible = false) objetos de cenário que estão para além do alcance
+        // de render definido pela qualidade gráfica. Objetos invisíveis são ignorados
+        // pelo WebGLRenderer antes de gerar geometria/desenhar triângulos, poupando GPU
+        // de verdade — exatamente como pedido: "no gráfico mais baixo, objetos mais
+        // longe não são renderizados, por estarem escondidos pelo fog".
+        //
+        // Corre a um ritmo reduzido (não em todos os frames) porque é uma verificação
+        // de distância simples, não precisa de granularidade de 60 Hz.
+        let _cullTimer = 0;
+        const CULL_INTERVAL = 0.2; // segundos entre verificações — barato e suficiente
+        function cullDistantObjects() {
+            if (!camera) return;
+            const cullDist = window._graphicsCullDistance ?? 250;
+            const cullDistSq = cullDist * cullDist;
+            const camPos = camera.position;
+
+            // Decorações (corais, algas, pedras): puramente visuais, candidatas ideais a culling
+            for (let i = 0; i < decorations.length; i++) {
+                const obj = decorations[i];
+                const dx = obj.position.x - camPos.x;
+                const dz = obj.position.z - camPos.z;
+                obj.visible = (dx * dx + dz * dz) <= cullDistSq;
+            }
+
+            // Inimigos: nunca escondemos os que estão perto/ativos a perseguir o jogador,
+            // mas os muito distantes (fora do raio de deteção e do alcance de render)
+            // também não precisam de ser desenhados.
+            for (let i = 0; i < enemies.length; i++) {
+                const bot = enemies[i];
+                if (bot.userData && bot.userData.dead) continue;
+                const dx = bot.position.x - camPos.x;
+                const dz = bot.position.z - camPos.z;
+                bot.visible = (dx * dx + dz * dz) <= cullDistSq;
             }
         }
         // ===== FIM MAIN MENU =====

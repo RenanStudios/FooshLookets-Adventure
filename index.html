@@ -1697,6 +1697,70 @@
             .mm-hints { font-size: clamp(10px, 3vw, 14px); }
         }
         /* ===== FIM MAIN MENU ===== */
+
+        /* ===== CONFIG DO PAUSE ===== */
+        .pause-cfg-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 6px 0;
+        }
+        .pause-cfg-label {
+            font-family: 'Fredoka One', cursive;
+            font-size: clamp(13px, 1.8vw, 20px);
+            color: #fff;
+            min-width: 90px;
+            text-shadow: 1px 1px 2px #000;
+            text-align: left;
+        }
+        /* No painel de config do pause, o menu-content não deve ter padding enorme */
+        #pause-settings-view .settings-slider {
+            width: clamp(70px, 18vw, 160px);
+        }
+        @media (max-width: 900px) and (orientation: landscape) {
+            #pause-settings-view h1 {
+                font-size: clamp(16px, 3vw, 26px) !important;
+                margin-bottom: 8px !important;
+            }
+            .pause-cfg-row {
+                padding: 3px 0;
+                gap: 8px;
+            }
+            .pause-cfg-label {
+                font-size: clamp(11px, 2vw, 15px);
+                min-width: 72px;
+            }
+            #pause-settings-view .settings-slider {
+                width: clamp(55px, 13vw, 110px);
+            }
+            #pause-settings-view .settings-select {
+                font-size: clamp(10px, 1.8vw, 14px);
+                padding: 2px 5px;
+            }
+            #pause-settings-view .btn {
+                margin-top: 6px !important;
+                padding: 7px 18px;
+                font-size: clamp(12px, 2vw, 16px);
+            }
+        }
+        @media (max-width: 600px) and (orientation: landscape) {
+            #pause-settings-view h1 {
+                font-size: clamp(13px, 3vw, 18px) !important;
+                margin-bottom: 4px !important;
+            }
+            .pause-cfg-row {
+                padding: 2px 0;
+                gap: 6px;
+            }
+            .pause-cfg-label {
+                font-size: 11px;
+                min-width: 62px;
+            }
+            #pause-settings-view .settings-slider {
+                width: clamp(48px, 11vw, 90px);
+            }
+        }
+        /* ===== FIM CONFIG DO PAUSE ===== */
     </style>
 </head>
 <body>
@@ -2049,6 +2113,23 @@
                         <option value="low">Baixo</option>
                     </select>
                 </div>
+                <div class="settings-divider"></div>
+                <!-- Otimizar Performance (LOD) -->
+                <div class="settings-row">
+                    <span class="settings-label">OTIMIZAR</span>
+                    <div id="cfg-perf-toggle" onclick="togglePerfMode()" style="
+                        cursor:pointer; width:54px; height:28px; border-radius:14px;
+                        background:#ccc; border:3px solid #333; position:relative;
+                        transition:background 0.2s; box-shadow:2px 2px 0 #333; flex-shrink:0;">
+                        <div id="cfg-perf-knob" style="
+                            position:absolute; top:2px; left:2px;
+                            width:18px; height:18px; border-radius:50%;
+                            background:#fff; border:2px solid #555;
+                            transition:left 0.2s; box-shadow:0 1px 3px rgba(0,0,0,0.3);">
+                        </div>
+                    </div>
+                    <span id="cfg-perf-label" style="font-family:'Fredoka One',cursive;font-size:clamp(11px,1.4vw,16px);color:#555;">OFF</span>
+                </div>
                 <div class="mm-back-btn" onclick="mmCloseSettings()">◀ VOLTAR</div>
             </div>
         </div>
@@ -2096,10 +2177,50 @@
 
     <div id="pause-menu">
         <div class="menu-content">
-            <h1>JOGO PAUSADO</h1>
-            <button class="btn" id="btn-resume">Continuar</button>
-            <button class="btn" id="btn-restart">Reiniciar Nível</button>
-            <div id="instructions">WASD: Mover | ESPAÇO: Saltar (Duplo Salto) | ESC: Pausar</div>
+            <div id="pause-main-view">
+                <h1>JOGO PAUSADO</h1>
+                <button class="btn" id="btn-resume">Continuar</button>
+                <button class="btn" id="btn-restart">Reiniciar Nível</button>
+                <button class="btn" onclick="openPauseSettings()">⚙️ Configurações</button>
+                <div id="instructions">WASD: Mover | ESPAÇO: Saltar (Duplo Salto) | ESC: Pausar</div>
+            </div>
+            <div id="pause-settings-view" style="display:none;">
+                <h1 style="font-size:clamp(22px,3.5vw,36px); margin:0 0 18px;">⚙️ CONFIGURAÇÕES</h1>
+                <div class="pause-cfg-row">
+                    <span class="pause-cfg-label">MÚSICA</span>
+                    <input type="range" class="settings-slider" id="pcfg-music" min="0" max="100" value="60" oninput="applyMusicVolume(this.value)">
+                </div>
+                <div class="pause-cfg-row">
+                    <span class="pause-cfg-label">EFEITOS</span>
+                    <input type="range" class="settings-slider" id="pcfg-sfx" min="0" max="100" value="80" oninput="applySfxVolume(this.value)">
+                </div>
+                <div class="pause-cfg-row">
+                    <span class="pause-cfg-label">RESOLUÇÃO</span>
+                    <select class="settings-select" id="pcfg-resolution" onchange="applyResolution(this.value);">
+                        <option value="native">Nativa</option>
+                        <option value="high">Alta</option>
+                        <option value="medium" selected>Média</option>
+                        <option value="low">Baixa</option>
+                    </select>
+                </div>
+                <div class="pause-cfg-row">
+                    <span class="pause-cfg-label">GRÁFICOS</span>
+                    <select class="settings-select" id="pcfg-graphics" onchange="applyGraphics(this.value);">
+                        <option value="ultra">Ultra</option>
+                        <option value="high">Alto</option>
+                        <option value="medium" selected>Médio</option>
+                        <option value="low">Baixo</option>
+                    </select>
+                </div>
+                <div class="pause-cfg-row">
+                    <span class="pause-cfg-label">OTIMIZAR</span>
+                    <div id="pcfg-perf-toggle" onclick="togglePerfMode(); syncPausePerfToggle();" style="cursor:pointer;width:54px;height:28px;border-radius:14px;background:#ccc;border:3px solid #555;position:relative;transition:background 0.2s;box-shadow:2px 2px 0 #555;flex-shrink:0;">
+                        <div id="pcfg-perf-knob" style="position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid #777;transition:left 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>
+                    </div>
+                    <span id="pcfg-perf-label" style="font-family:'Fredoka One',cursive;font-size:14px;color:#ccc;">OFF</span>
+                </div>
+                <button class="btn" onclick="closePauseSettings()" style="margin-top:14px;">◀ Voltar</button>
+            </div>
         </div>
     </div>
 
@@ -2273,7 +2394,8 @@
         const enemies = []; // Inimigos ByteBot
         const movingPlatforms = []; // Plataformas com movimento próprio (puzzle)
         const orbitPlatforms  = []; // Plataformas que giram em círculo
-        const crumblingPlatforms = []; // Plataformas que caem ao pisar e voltam em 3s
+        const crumblingPlatforms = [];
+        const alternatingPlatforms = []; // plataformas alternantes (tipo Mario Galaxy 2) // Plataformas que caem ao pisar e voltam em 3s
 
         // Checkpoint
         let checkpointPos = new THREE.Vector3(0, 5, 0); // posição de respawn activa
@@ -2314,6 +2436,7 @@
             wood: 0x6e4a2c,
             bgHaze: 0x87ceeb, // Azul claro
             coin1: 0xffd700,
+            coin5: 0xd0c792,
             coin10: 0xc0c0c0,
             coin20: 0xffaa00,
             key: 0xa8d8ff,
@@ -4098,6 +4221,7 @@
         function spawnCoin(x, y, z, value) {
             let color, radius;
             if (value === 1) { color = COLORS.coin1; radius = 0.4; }
+            else if (value === 5) { color = COLORS.coin5; radius = 0.5; }
             else if (value === 10) { color = COLORS.coin10; radius = 0.6; }
             else { color = COLORS.coin20; radius = 0.8; }
 
@@ -4264,7 +4388,8 @@
             }
         }
 
-        const TOTAL_COINS = 993;
+        const TOTAL_COINS_PER_LEVEL = { 1: 993, 2: 280, 3: 221 };
+        function getTotalCoins() { return TOTAL_COINS_PER_LEVEL[currentLevel] || 0; }
         let currentLevel = 1;
         let _winDanceTimer = 0;
         const WIN_DANCE_DURATION = 4.0;
@@ -4301,7 +4426,11 @@
 
         function animateCoinCounter(targetCoins) {
             const span = document.getElementById('results-coins');
-            const allCoins = (targetCoins >= TOTAL_COINS);
+            const total = getTotalCoins();
+            const allCoins = (targetCoins >= total);
+            // Reset colour before animating so previous level's yellow doesn't bleed in
+            span.style.color = '#fff';
+            span.style.textShadow = '1px 1px 3px #000';
             const duration = 1600; // ms
             const start = performance.now();
             function tick(now) {
@@ -4310,11 +4439,11 @@
                 // Easing: rápido no início, desacelera no fim
                 const eased = 1 - Math.pow(1 - progress, 3);
                 const current = Math.round(eased * targetCoins);
-                span.textContent = current + ' / ' + TOTAL_COINS;
+                span.textContent = current + ' / ' + total;
                 if (progress < 1) {
                     requestAnimationFrame(tick);
                 } else {
-                    span.textContent = targetCoins + ' / ' + TOTAL_COINS;
+                    span.textContent = targetCoins + ' / ' + total;
                     if (allCoins) {
                         span.style.color = '#FFD700';
                         span.style.textShadow = '0 0 14px #FFD700, 1px 1px 3px #000';
@@ -4330,6 +4459,9 @@
             document.getElementById('victory-dance-label').style.display = 'none';
             // Para a música de fundo
             _music.stop();
+            // Esconde controles mobile durante a tela de resultados
+            const mc = document.getElementById('mobile-controls');
+            if (mc) mc.style.display = 'none';
 
             // Mostra tela e reseta estados das animações
             const rs = document.getElementById('results-screen');
@@ -4584,6 +4716,8 @@
                     checkpointPos.set(0, 5, 0);
                     lastInputTime = performance.now() / 1000; isAFK = false;
                     updateHUD();
+                    scene.background = new THREE.Color(COLORS.bgHaze);
+                    if (scene.fog) scene.fog.color = new THREE.Color(COLORS.bgHaze);
                     _clearLevelObjects();
                     buildLevel();
                     _cachedBoxes.clear();
@@ -4610,8 +4744,36 @@
                     checkpointPos.set(0, 25, 0);
                     lastInputTime = performance.now() / 1000; isAFK = false;
                     updateHUD();
+                    scene.background = new THREE.Color(COLORS.bgHaze);
+                    if (scene.fog) scene.fog.color = new THREE.Color(COLORS.bgHaze);
                     _clearLevelObjects();
                     buildLevel2();
+                    _cachedBoxes.clear();
+                    for (const obj of [...new Set([...collidableObjects, ...floorObjects])]) getCachedBox(obj);
+                    currentState = GAME_STATE.PLAYING;
+                    document.getElementById('pause-menu').style.display = 'none';
+                    document.getElementById('victory-dance-label').style.display = 'none';
+                    document.getElementById('results-screen').style.display = 'none';
+                    if (FL_characterInner) FL_characterInner.rotation.y = 0;
+                    _winDanceTimer = 0;
+                });
+                return;
+            }
+            if (event.shiftKey && event.code === 'Digit3') {
+                showLoadingScreen(() => {
+                    currentLevel = 3;
+                    player.position.set(0, 15, 0);
+                    velocity.set(0, 0, 0);
+                    coins = 0; keys = 0; health = MAX_HEALTH;
+                    voidDamageCooldown = 0; playerHitCooldown = 0;
+                    FL_isDead = false; FL_deathTimer = -1; FL_deathByEnemy = false;
+                    FL_deathPivot.rotation.x = 0; FL_bodyGroup.rotation.x = 0; FL_bodyGroup.rotation.z = 0;
+                    FL_deathStars.visible = false; FL_deathStars.rotation.y = 0;
+                    checkpointPos.set(0, 15, 0);
+                    lastInputTime = performance.now() / 1000; isAFK = false;
+                    updateHUD();
+                    _clearLevelObjects();
+                    buildLevel3();
                     _cachedBoxes.clear();
                     for (const obj of [...new Set([...collidableObjects, ...floorObjects])]) getCachedBox(obj);
                     currentState = GAME_STATE.PLAYING;
@@ -4743,6 +4905,17 @@
             }
             crumblingPlatforms.length = 0;
 
+            // Remove plataformas alternantes
+            for (const p of alternatingPlatforms) {
+                scene.remove(p.mesh);
+                scene.remove(p.outlineMesh);
+                scene.remove(p.barrier);
+                const fi = floorObjects.indexOf(p.mesh); if (fi > -1) floorObjects.splice(fi, 1);
+                const ci = collidableObjects.indexOf(p.barrier); if (ci > -1) collidableObjects.splice(ci, 1);
+            }
+            alternatingPlatforms.length = 0;
+            _altPlatTimer = 0;
+
             checkpoints.forEach(c => scene.remove(c));
             checkpoints.length = 0;
 
@@ -4766,6 +4939,8 @@
             // Esconder telas de vitória e resultados
             document.getElementById('victory-dance-label').style.display = 'none';
             document.getElementById('results-screen').style.display = 'none';
+            // Restaura controles mobile
+            if (typeof window._showMobileControls === 'function') window._showMobileControls();
             // Repor rotação do personagem após dança
             if (FL_characterInner) FL_characterInner.rotation.y = 0;
             _winDanceTimer = 0;
@@ -4805,6 +4980,12 @@
             orbitPlatforms.length = 0;
             for (const p of crumblingPlatforms) { scene.remove(p.mesh); scene.remove(p.barrier); }
             crumblingPlatforms.length = 0;
+            for (const p of alternatingPlatforms) {
+                scene.remove(p.mesh); scene.remove(p.outlineMesh); scene.remove(p.barrier);
+                const fi = floorObjects.indexOf(p.mesh); if (fi > -1) floorObjects.splice(fi, 1);
+                const ci = collidableObjects.indexOf(p.barrier); if (ci > -1) collidableObjects.splice(ci, 1);
+            }
+            alternatingPlatforms.length = 0;
             checkpoints.forEach(c => scene.remove(c));
             checkpoints.length = 0;
             // Remove decorações (corais, algas) da fase anterior
@@ -4859,10 +5040,166 @@
 
                 _music.play('level1.mp3');
                 currentState = GAME_STATE.PLAYING;
+                if (typeof window._showMobileControls === 'function') window._showMobileControls();
             });
         }
 
-        // ===== PLATAFORMAS QUE CAEM =====
+        // ===== PLATAFORMAS ALTERNANTES (inspirado em Mario Galaxy 2) =====
+        // Dois grupos: laranja terroso (0xc06820) e amarelo terracota (0xe8b840).
+        // A cada 3 segundos os grupos trocam: o sólido vira outline pontilhado (sem colisão)
+        // e o outline pontilhado vira sólido (com colisão).
+        // Um tic-tac é emitido nos últimos 1.2s de cada ciclo — volume por proximidade.
+
+        function playTickTackSound(volume) {
+            try {
+                const ctx = _ac();
+                const now = ctx.currentTime;
+                // Tick
+                const osc1 = ctx.createOscillator();
+                const g1 = ctx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.value = 1100;
+                g1.gain.setValueAtTime(0, now);
+                g1.gain.linearRampToValueAtTime(volume * 0.5, now + 0.008);
+                g1.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+                osc1.connect(g1); g1.connect(_sfxDest());
+                osc1.start(now); osc1.stop(now + 0.07);
+                // Tack (ligeiramente mais agudo e depois de 0.16s)
+                const osc2 = ctx.createOscillator();
+                const g2 = ctx.createGain();
+                osc2.type = 'sine';
+                osc2.frequency.value = 900;
+                g2.gain.setValueAtTime(0, now + 0.16);
+                g2.gain.linearRampToValueAtTime(volume * 0.38, now + 0.168);
+                g2.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+                osc2.connect(g2); g2.connect(_sfxDest());
+                osc2.start(now + 0.16); osc2.stop(now + 0.23);
+            } catch(e) {}
+        }
+
+        // groupId: 0 = laranja terroso, 1 = amarelo terracota
+        // As plataformas do mesmo groupId alternam em bloco.
+        // offset: desfasamento de fase (0 = grupo A começa sólido, 1 = grupo B começa sólido)
+        function createAlternatingPlatform(x, y, z, w, d, groupId) {
+            const h = 1.2;
+            const COLOR_A = 0xb55a14; // laranja terroso
+            const COLOR_B = 0xd4972a; // amarelo terracota
+
+            const color = groupId === 0 ? COLOR_A : COLOR_B;
+            const cornerRadius = Math.min(1.2, w / 4, d / 4);
+            const geo = createRoundedTopGeo(w, h, d, cornerRadius);
+
+            const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0.05 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            mesh.position.set(x, y, z);
+            scene.add(mesh);
+
+            // Outline pontilhado: wireframe com cor da plataforma + transparência
+            const outlineGeo = createRoundedTopGeo(w, h, d, cornerRadius);
+            const outlineMat = new THREE.MeshBasicMaterial({
+                color,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.55,
+            });
+            const outlineMesh = new THREE.Mesh(outlineGeo, outlineMat);
+            outlineMesh.position.set(x, y, z);
+            outlineMesh.visible = false; // começa invisível (a sólida está ativa)
+            scene.add(outlineMesh);
+
+            const barrierGeo = new THREE.BoxGeometry(w - 0.2, h, d - 0.2);
+            const barrier = new THREE.Mesh(barrierGeo, new THREE.MeshBasicMaterial({ visible: false }));
+            barrier.position.set(x, y, z);
+            scene.add(barrier);
+
+            floorObjects.push(mesh);
+            collidableObjects.push(barrier);
+
+            const data = {
+                mesh, outlineMesh, barrier,
+                groupId,
+                isSolid: true, // começa sólido (estado será ajustado em updateAlternatingPlatforms)
+                _tickPlayed: false,
+            };
+            alternatingPlatforms.push(data);
+            return data;
+        }
+
+        // Timer global partilhado por todas as plataformas alternantes
+        let _altPlatTimer = 0;
+        const ALT_CYCLE = 4.5;   // duração total de cada fase (segundos)
+        let _altTickCooldown = 0; // evita spam de tic-tac
+
+        function updateAlternatingPlatforms(delta) {
+            if (alternatingPlatforms.length === 0) return;
+
+            _altPlatTimer += delta;
+            if (_altPlatTimer >= ALT_CYCLE) _altPlatTimer -= ALT_CYCLE;
+
+            // groupA (laranja, id=0) é sólido na primeira metade do ciclo,
+            // groupB (amarelo, id=1) é sólido na segunda metade.
+            const halfCycle = ALT_CYCLE / 2;
+            const groupASolid = _altPlatTimer < halfCycle;
+
+            // Som de tic-tac: toca nos últimos 1.2s antes de cada alternância
+            const timeToSwitch = Math.min(_altPlatTimer, ALT_CYCLE - _altPlatTimer) % halfCycle;
+            const WARNING_TIME = 1.2;
+            const nearSwitch = (halfCycle - (_altPlatTimer % halfCycle)) < WARNING_TIME;
+
+            // Distância mínima do jogador a qualquer plataforma alternante
+            let minDist = Infinity;
+            for (const p of alternatingPlatforms) {
+                const dx = player.position.x - p.mesh.position.x;
+                const dz = player.position.z - p.mesh.position.z;
+                const dist = Math.sqrt(dx * dx + dz * dz);
+                if (dist < minDist) minDist = dist;
+            }
+            const SOUND_RANGE = 18;
+            const proxVol = nearSwitch && minDist < SOUND_RANGE
+                ? Math.max(0, 1 - minDist / SOUND_RANGE) * _sfxVolume
+                : 0;
+
+            if (nearSwitch && proxVol > 0.02) {
+                _altTickCooldown -= delta;
+                if (_altTickCooldown <= 0) {
+                    playTickTackSound(proxVol);
+                    _altTickCooldown = 0.32; // toca a cada ~320ms
+                }
+            } else {
+                _altTickCooldown = 0;
+            }
+
+            for (const p of alternatingPlatforms) {
+                const shouldBeSolid = (p.groupId === 0) ? groupASolid : !groupASolid;
+
+                if (shouldBeSolid === p.isSolid) continue; // sem mudança
+
+                p.isSolid = shouldBeSolid;
+
+                if (shouldBeSolid) {
+                    // Ativa: visível + colisão
+                    p.mesh.visible = true;
+                    p.outlineMesh.visible = false;
+                    if (!floorObjects.includes(p.mesh)) floorObjects.push(p.mesh);
+                    if (!collidableObjects.includes(p.barrier)) collidableObjects.push(p.barrier);
+                    _cachedBoxes.delete(p.barrier);
+                } else {
+                    // Inativa: outline pontilhado + sem colisão
+                    p.mesh.visible = false;
+                    p.outlineMesh.visible = true;
+                    const fi = floorObjects.indexOf(p.mesh);
+                    if (fi > -1) floorObjects.splice(fi, 1);
+                    const ci = collidableObjects.indexOf(p.barrier);
+                    if (ci > -1) collidableObjects.splice(ci, 1);
+                    _cachedBoxes.delete(p.barrier);
+                }
+            }
+        }
+        // ===== FIM PLATAFORMAS ALTERNANTES =====
+
+
         // Caem 1s após o jogador pisar; voltam à posição original após 3s.
         function createCrumblingPlatform(x, y, z, w, d, color) {
             const h = 1.2;
@@ -5155,6 +5492,255 @@
             createDecoration(-6, 38, -619, 'coralYellow');
             createDecoration( 0, 38, -629, 'kelp');
             spawnScroll(0, 38, -624);
+        }
+
+        // Cores próprias da Fase 3 — penhasco ao entardecer (atmosfera diferente, sem ser sombria)
+        const COLORS_L3 = {
+            stoneDark:  0x9c8772,
+            stoneLight: 0xb8a386,
+            ember:      0xffb070,
+            sky:        0xf2b169
+        };
+
+        function buildLevel3() {
+            // ── FASE 3: O PENHASCO DO GUARDA-PORTAS ───────────────────────────
+            // Última fase do Mundo 1, antecede o primeiro chefe do jogo.
+            // Atmosfera: céu/névoa em tom crepuscular vinho, pedra escura — contraste
+            // deliberado com a praia (fase 1) e as ruínas no mar (fase 2).
+            // Mesmas regras físicas das fases anteriores:
+            //   topo de createPlatform(x,y,z,w,H,d) = y + H/2
+            //   gap horizontal seguro entre bordas: ≤12u | gap vertical seguro: ≤4u
+            // ──────────────────────────────────────────────────────────────────
+
+            scene.background = new THREE.Color(COLORS_L3.sky);
+            if (scene.fog) scene.fog.color = new THREE.Color(COLORS_L3.sky);
+
+            // Solo base
+            const groundGeo = new THREE.CylinderGeometry(1800, 1800, 20, 64);
+            const groundMat = new THREE.MeshStandardMaterial({ color: COLORS_L3.stoneDark, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.position.y = -40;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            floorObjects.push(ground);
+
+            // ── ZONA 1: PLATAFORMA DE PARTIDA ─────────────────────────────────
+            // createPlatform(0,-5,0,30,40,30) → topo=15, base=-25
+            createPlatform(0, -5, 0, 30, 40, 30, COLORS_L3.stoneDark, 4);
+            createCheckpoint(0, 15, 0);
+            spawnCoin(0, 16.5, 0, 10);
+            createDecoration(-8, 15, -6, 'kelp');
+            createDecoration( 8, 15,  6, 'coralPink');
+
+            // ── ZONA 2: SUBIDA EM DIREÇÃO NORTE (Z negativo) ──────────────────
+            // Plataformas estáticas, sem movimento — apenas saltos verticais e de avanço.
+            // Zig-zag em X (±6) para variar a trajetória. Gaps em Z ≤12u entre bordas,
+            // subida de ≤4u por degrau.
+            createPlatform( 6,  -3,  -22, 10, 40, 10, COLORS_L3.stoneLight, 4); // topo=17
+            createPlatform(-6,   0,  -38, 10, 40, 10, COLORS_L3.stoneDark,  4); // topo=20
+            createPlatform( 6,   3,  -54, 10, 40, 10, COLORS_L3.stoneLight, 4); // topo=23
+            createPlatform(-6,   6,  -70, 10, 40, 10, COLORS_L3.stoneDark,  4); // topo=26
+            spawnCoin( 6, 18.5, -22, 5);
+            spawnCoin(-6, 21.5, -38, 5);
+            spawnCoin( 6, 24.5, -54, 5);
+            spawnCoin(-6, 27.5, -70, 5);
+            createDecoration(-10, 26, -74, 'kelp');
+
+            // ── ZONA 3: PLATAFORMA MAIOR COM INIMIGOS ─────────────────────────
+            // topo = 9+20 = 29, X±13, Z -100..-74
+            createPlatform(0, 9, -87, 26, 40, 26, COLORS_L3.stoneDark, 4);
+            createCheckpoint(0, 29, -87);
+            spawnByteBot(-7, 29, -80, 26, 26, 0, -87);
+            spawnByteBot( 7, 29, -94, 26, 26, 0, -87);
+            spawnCoin(0, 30.5, -87, 20);
+            createDecoration(-9, 29, -92, 'coralPink');
+            createDecoration( 9, 29, -82, 'coralYellow');
+
+            // ── ZONA 4: EXTENSÃO PARA A DIREITA (X positivo) ──────────────────
+            // Saímos da borda direita da Zona 3 (X=13, topo=29). Plataformas de
+            // salto a mesma altura, avançando em X. Gaps de borda ≤12u.
+            createPlatform(27, 9, -87, 9, 40, 9, COLORS_L3.stoneLight, 4); // topo=29
+            createPlatform(42, 9, -87, 9, 40, 9, COLORS_L3.stoneDark,  4); // topo=29
+            createPlatform(57, 9, -87, 9, 40, 9, COLORS_L3.stoneLight, 4); // topo=29
+            spawnCoin(27, 30.5, -87, 1);
+            spawnCoin(42, 30.5, -87, 5);
+            spawnCoin(57, 30.5, -87, 10);
+            createDecoration(57, 29, -83, 'kelp');
+
+            // ── ZONA 5: CÂMARA DAS PLATAFORMAS ALTERNANTES ────────────────────
+            // Saímos de X=57 (borda=61, topo=29). Avançamos em Z negativo.
+            // As plataformas laranjas (grupo 0) e amarelas (grupo 1) alternam a cada 3s.
+            // O jogador tem de saltar entre as que estão sólidas no momento.
+            createPlatform(57, 9, -103, 10, 40, 10, COLORS_L3.stoneDark, 4); // topo=29 — ilhota de entrada
+            createCheckpoint(57, 31, -103);
+            spawnCoin(57, 30.5, -103, 10);
+            createDecoration(53, 29, -107, 'coralYellow');
+            createDecoration(61, 29, -99, 'kelp');
+
+            // Grupo A (laranja, id=0) — ativos na primeira metade do ciclo
+            createAlternatingPlatform(57, 29.6, -118, 9, 9, 0);
+            createAlternatingPlatform(57, 29.6, -134, 9, 9, 0);
+
+            // Grupo B (amarelo, id=1) — ativos na segunda metade do ciclo
+            createAlternatingPlatform(57, 29.6, -126, 9, 9, 1);
+            createAlternatingPlatform(57, 29.6, -142, 9, 9, 1);
+
+            // Ilhota segura após a câmara
+            createPlatform(57, 9, -157, 12, 40, 12, COLORS_L3.stoneLight, 4); // topo=29
+            spawnCoin(57, 30.5, -157, 20);
+            createDecoration(52, 29, -161, 'coralPink');
+            createDecoration(62, 29, -153, 'coralYellow');
+
+            // ── ZONA 6: SUBIDA EM ESPIRAL COM PLATAFORMAS MISTAS ─────────────
+            // Sobe de Y=29 até Y=38 em degraus indo para X positivo e Z negativo
+            createPlatform(70, 11, -157, 9, 44, 9, COLORS_L3.stoneDark, 4);  // topo=33
+            createPlatform(83, 13, -157, 9, 48, 9, COLORS_L3.stoneLight, 4); // topo=37
+            createPlatform(83, 14, -170, 9, 50, 9, COLORS_L3.stoneDark, 4);  // topo=39
+            spawnCoin(70, 34.5, -157, 5);
+            spawnCoin(83, 38.5, -157, 10);
+            spawnCoin(83, 40.5, -170, 10);
+            createDecoration(79, 39, -174, 'kelp');
+            createDecoration(87, 37, -153, 'coralPink');
+
+            // Plataforma móvel vertical ligando ao próximo segmento
+            createMovingPlatform(83, 36, -183, 9, 9, 0x9a7050, 'y', 3, 0.28, 0.0);
+            spawnCoin(83, 39.5, -183, 5);
+
+            // Plataforma intermediária elevada
+            createPlatform(83, 16, -197, 14, 54, 14, COLORS_L3.stoneDark, 4); // topo=43
+            createCheckpoint(83, 45, -197);
+            spawnCoin(83, 44.5, -197, 20);
+            createDecoration(77, 43, -201, 'coralYellow');
+            createDecoration(89, 43, -193, 'kelp');
+
+            // ── ZONA 7: SEGUNDA CÂMARA ALTERNANTE (diagonal) ─────────────────
+            // A câmara agora tem plataformas A e B intercaladas em diagonal XZ
+            // para forçar o jogador a memorizar o padrão.
+
+            // Grupo A (laranja)
+            createAlternatingPlatform(96,  46.6, -197, 8, 8, 0);
+            createAlternatingPlatform(109, 46.6, -210, 8, 8, 0);
+            createAlternatingPlatform(96,  49.6, -223, 8, 8, 0);
+
+            // Grupo B (amarelo)
+            createAlternatingPlatform(96,  46.6, -210, 8, 8, 1);
+            createAlternatingPlatform(109, 52.6, -223, 8, 8, 1);
+
+            // Ilhota de saída
+            createPlatform(109, 26, -237, 12, 60, 12, COLORS_L3.stoneLight, 4); // topo=56
+            spawnCoin(109, 57.5, -237, 20);
+            createDecoration(104, 56, -241, 'coralPink');
+            createDecoration(114, 56, -233, 'coralYellow');
+
+            // ── ZONA 8: ARENA FINAL COM GUARDAS ──────────────────────────────
+            // Grande plataforma elevada com inimigos antes do scroll final.
+            createPlatform(109, 30, -265, 36, 60, 36, COLORS_L3.stoneDark, 4); // topo=60
+            createCheckpoint(109, 62, -265);
+            spawnByteBot( 96, 60, -255, 36, 36, 109, -265);
+            spawnByteBot(122, 60, -255, 36, 36, 109, -265);
+            spawnByteBot( 96, 60, -275, 36, 36, 109, -265);
+            spawnByteBot(122, 60, -275, 36, 36, 109, -265);
+            spawnByteBot(109, 60, -265, 36, 36, 109, -265);
+            spawnCoin(100, 61.5, -258, 10);
+            spawnCoin(118, 61.5, -258, 10);
+            spawnCoin(100, 61.5, -272, 10);
+            spawnCoin(118, 61.5, -272, 10);
+            spawnCoin(109, 61.5, -265, 20);
+            createDecoration(100, 60, -257, 'coralYellow');
+            createDecoration(118, 60, -273, 'kelp');
+            createDecoration(100, 60, -273, 'coralPink');
+            createDecoration(118, 60, -257, 'coralYellow');
+
+            // Plataformas alternantes finais — decorativas e desafiantes antes do scroll
+            createAlternatingPlatform(109, 60.6, -285, 9, 9, 0);
+            createAlternatingPlatform(109, 64,   -298, 9, 9, 1);
+            createAlternatingPlatform(109, 68,   -311, 9, 9, 0);
+
+            // Plataforma final — pergaminho
+            createPlatform(109, 42, -326, 20, 60, 20, COLORS_L3.stoneDark, 4); // topo=72
+            spawnCoin(109, 73.5, -326, 20);
+            spawnCoin(103, 73.5, -320, 10);
+            spawnCoin(115, 73.5, -332, 10);
+            createDecoration(103, 72, -330, 'coralPink');
+            createDecoration(115, 72, -322, 'kelp');
+            createDecoration(109, 72, -318, 'coralYellow');
+
+            // ── ZONA 9: DESCIDA E CORREDOR FINAL ─────────────────────────────────
+            // Degrau de descida (topo=68)
+            createPlatform(109, 38, -345, 16, 60, 16, COLORS_L3.stoneLight, 4); // topo=68
+            spawnCoin(109, 69.5, -345, 10);
+            createDecoration(103, 68, -349, 'kelp');
+            createDecoration(115, 68, -341, 'coralPink');
+
+            // Três plataformas em ziguezague (topo=65)
+            createPlatform(100, 35, -362, 10, 60, 10, COLORS_L3.stoneDark, 4); // topo=65
+            spawnCoin(100, 66.5, -362, 10);
+
+            createPlatform(118, 35, -375, 10, 60, 10, COLORS_L3.stoneDark, 4); // topo=65
+            spawnCoin(118, 66.5, -375, 10);
+
+            createPlatform(100, 35, -388, 10, 60, 10, COLORS_L3.stoneDark, 4); // topo=65
+            spawnCoin(100, 66.5, -388, 10);
+            createDecoration(104, 65, -392, 'coralYellow');
+
+            // Plataforma de pausa com guarda (topo=67)
+            createPlatform(109, 37, -406, 18, 60, 14, COLORS_L3.stoneLight, 4); // topo=67
+            spawnByteBot(109, 67, -406, 18, 14, 109, -406);
+            spawnCoin(103, 68.5, -402, 10);
+            spawnCoin(115, 68.5, -410, 10);
+            createDecoration(103, 67, -411, 'kelp');
+            createDecoration(116, 67, -401, 'coralPink');
+
+            // ── ARENA DO BOSS ─────────────────────────────────────────────────────
+            // Plataforma grande e plana — topo=70, X centro=109, Z centro=-470
+            // Dimensões: 60 de largura (X), 80 de profundidade (Z)
+            createPlatform(109, 40, -470, 60, 60, 80, COLORS_L3.stoneDark, 4); // topo=70
+
+            // Decorações nas bordas da arena
+            createDecoration( 82, 70, -440, 'coralPink');
+            createDecoration(136, 70, -440, 'kelp');
+            createDecoration( 82, 70, -500, 'kelp');
+            createDecoration(136, 70, -500, 'coralPink');
+            createDecoration( 82, 70, -470, 'coralYellow');
+            createDecoration(136, 70, -470, 'coralYellow');
+            createDecoration(109, 70, -508, 'coralPink');
+
+            // Moedas espalhadas pela arena
+            spawnCoin( 95, 71.5, -450, 10);
+            spawnCoin(123, 71.5, -450, 10);
+            spawnCoin( 95, 71.5, -490, 10);
+            spawnCoin(123, 71.5, -490, 10);
+            spawnCoin(109, 71.5, -470, 20);
+
+            // ── BARREIRAS INVISÍVEIS DA ARENA ────────────────────────────────────
+            // Parede ESQUERDA (X=79, cobre toda a profundidade)
+            {
+                const wGeo = new THREE.BoxGeometry(2, 30, 82);
+                const wMat = new THREE.MeshBasicMaterial({ visible: false });
+                const wMesh = new THREE.Mesh(wGeo, wMat);
+                wMesh.position.set(79, 85, -470);
+                scene.add(wMesh);
+                collidableObjects.push(wMesh);
+            }
+            // Parede DIREITA (X=139)
+            {
+                const wGeo = new THREE.BoxGeometry(2, 30, 82);
+                const wMat = new THREE.MeshBasicMaterial({ visible: false });
+                const wMesh = new THREE.Mesh(wGeo, wMat);
+                wMesh.position.set(139, 85, -470);
+                scene.add(wMesh);
+                collidableObjects.push(wMesh);
+            }
+            // Parede de FUNDO/TRÁS (Z=-511, fecha o fundo da arena)
+            {
+                const wGeo = new THREE.BoxGeometry(62, 30, 2);
+                const wMat = new THREE.MeshBasicMaterial({ visible: false });
+                const wMesh = new THREE.Mesh(wGeo, wMat);
+                wMesh.position.set(109, 85, -511);
+                scene.add(wMesh);
+                collidableObjects.push(wMesh);
+            }
+            // Frente (Z≈-429) fica ABERTA — entrada do jogador
         }
 
         // ===== INIMIGOS BYTEBOT =====
@@ -5905,10 +6491,15 @@
 
             // Animação do balanço das algas — itera só nas decorações (array já existente)
             // em vez de percorrer toda a árvore da cena (scene.traverse) a cada frame.
-            for (const obj of decorations) {
-                if (obj.userData.isKelp) {
-                    obj.rotation.z = Math.sin(clock.elapsedTime * 2 + obj.position.x) * 0.1;
-                    obj.rotation.x = Math.cos(clock.elapsedTime * 1.5 + obj.position.z) * 0.1;
+            // Quando perf mode está ativo, algas distantes param de animar (LOD de animação).
+            if (_perfModeEnabled) {
+                updateKelpLOD(clock.elapsedTime);
+            } else {
+                for (const obj of decorations) {
+                    if (obj.userData.isKelp) {
+                        obj.rotation.z = Math.sin(clock.elapsedTime * 2 + obj.position.x) * 0.1;
+                        obj.rotation.x = Math.cos(clock.elapsedTime * 1.5 + obj.position.z) * 0.1;
+                    }
                 }
             }
         }
@@ -5963,6 +6554,7 @@
                 updateMovingPlatforms(delta);
                 updateOrbitPlatforms();
                 updateCrumblingPlatforms(delta);
+                updateAlternatingPlatforms(delta);
                 updateCheckpoints(delta);
                 updateSmokeParticles(delta);
                 updateComboTexts(delta);
@@ -6004,7 +6596,8 @@
                 // Culling de distância: não precisa de correr todos os frames,
                 // a posição da câmara não muda o suficiente em poucos ms para justificar o custo.
                 _cullTimer += delta;
-                if (_cullTimer >= CULL_INTERVAL) {
+                const _cullCheck = _perfModeEnabled ? CULL_INTERVAL * 2 : CULL_INTERVAL;
+                if (_cullTimer >= _cullCheck) {
                     _cullTimer = 0;
                     cullDistantObjects();
                 }
@@ -6315,6 +6908,9 @@
             ls.appendChild(txt);
 
             document.body.appendChild(ls);
+            // Esconde controles mobile durante o loading
+            const _mcls = document.getElementById('mobile-controls');
+            if (_mcls) _mcls.style.display = 'none';
 
             setTimeout(() => { ls.remove(); onDone(); }, loadDur);
         }
@@ -6495,6 +7091,98 @@
                 bot.visible = (dx * dx + dz * dz) <= cullDistSq;
             }
         }
+        // ===== MODO DE OTIMIZAÇÃO (LOD) =====
+        // Quando ativo: objetos de cenário distantes reduzem frequência de update,
+        // algas fora de alcance param de animar (mas continuam visíveis).
+        // Não afeta colisões, inimigos, física ou gameplay.
+        let _perfModeEnabled = false;
+        const PERF_LOD_DIST_SQ = 60 * 60; // raio em que algas animam normalmente
+        let _perfKelpTimer = 0;
+
+        function togglePerfMode() {
+            _perfModeEnabled = !_perfModeEnabled;
+            const toggle = document.getElementById('cfg-perf-toggle');
+            const knob   = document.getElementById('cfg-perf-knob');
+            const label  = document.getElementById('cfg-perf-label');
+            if (_perfModeEnabled) {
+                toggle.style.background = '#4caf50';
+                knob.style.left = '28px';
+                label.textContent = 'ON';
+                label.style.color = '#2e7d32';
+            } else {
+                toggle.style.background = '#ccc';
+                knob.style.left = '2px';
+                label.textContent = 'OFF';
+                label.style.color = '#555';
+            }
+        }
+
+        // Substitui a animação de algas no updateCollectibles quando perf mode está ativo:
+        // algas perto da câmara animam normalmente; as distantes param (poupam cálculos de seno).
+        function updateKelpLOD(elapsedTime) {
+            if (!_perfModeEnabled || !camera) return;
+            const camPos = camera.position;
+            for (const obj of decorations) {
+                if (!obj.userData.isKelp) continue;
+                const dx = obj.position.x - camPos.x;
+                const dz = obj.position.z - camPos.z;
+                if (dx * dx + dz * dz <= PERF_LOD_DIST_SQ) {
+                    // Perto: anima normalmente
+                    obj.rotation.z = Math.sin(elapsedTime * 2 + obj.position.x) * 0.1;
+                    obj.rotation.x = Math.cos(elapsedTime * 1.5 + obj.position.z) * 0.1;
+                }
+                // Longe: mantém última posição (sem atualizar), economiza Math.sin/cos
+            }
+        }
+        // ===== FIM MODO DE OTIMIZAÇÃO =====
+
+        // ===== CONFIGURAÇÕES DO PAUSE =====
+        function openPauseSettings() {
+            // Sincroniza os controles com os valores atuais antes de mostrar
+            const pgfx = document.getElementById('pcfg-graphics');
+            if (pgfx) pgfx.value = _pendingGraphics;
+            const pres = document.getElementById('pcfg-resolution');
+            if (pres) pres.value = _pendingResolution;
+            const pmus = document.getElementById('pcfg-music');
+            if (pmus) pmus.value = Math.round((_music._savedVolume ?? 0.6) * 100);
+            const psfx = document.getElementById('pcfg-sfx');
+            if (psfx) psfx.value = Math.round(_sfxVolume * 100);
+            syncPausePerfToggle();
+            document.getElementById('pause-main-view').style.display = 'none';
+            document.getElementById('pause-settings-view').style.display = 'block';
+        }
+        function closePauseSettings() {
+            document.getElementById('pause-settings-view').style.display = 'none';
+            document.getElementById('pause-main-view').style.display = 'block';
+            // Sincroniza os sliders do menu principal de configurações
+            const cmusic = document.getElementById('cfg-music');
+            if (cmusic) cmusic.value = document.getElementById('pcfg-music').value;
+            const csfx = document.getElementById('cfg-sfx');
+            if (csfx) csfx.value = document.getElementById('pcfg-sfx').value;
+            const cgfx = document.getElementById('cfg-graphics');
+            if (cgfx) cgfx.value = _pendingGraphics;
+            const cres = document.getElementById('cfg-resolution');
+            if (cres) cres.value = _pendingResolution;
+        }
+        function syncPausePerfToggle() {
+            const toggle = document.getElementById('pcfg-perf-toggle');
+            const knob   = document.getElementById('pcfg-perf-knob');
+            const label  = document.getElementById('pcfg-perf-label');
+            if (!toggle) return;
+            if (_perfModeEnabled) {
+                toggle.style.background = '#4caf50';
+                knob.style.left = '28px';
+                label.textContent = 'ON';
+                label.style.color = '#aeffae';
+            } else {
+                toggle.style.background = '#ccc';
+                knob.style.left = '2px';
+                label.textContent = 'OFF';
+                label.style.color = '#ccc';
+            }
+        }
+        // ===== FIM CONFIGURAÇÕES DO PAUSE =====
+
         // ===== FIM MAIN MENU =====
         // ===== FIM TELA DE TÍTULO =====
 

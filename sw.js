@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fooshlookets-v14';
+const CACHE_NAME = 'fooshlookets-v15';
 
 // Arquivos para cache offline
 const ASSETS = [

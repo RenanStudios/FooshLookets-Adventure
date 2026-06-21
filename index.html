@@ -2369,7 +2369,10 @@
             PAUSED: 1,
             WIN: 2,
             WIN_DANCE: 3,
-            WIN_LANDING: 4
+            WIN_LANDING: 4,
+            BOSS_INTRO: 5,
+            BOSS_FIGHT: 6,
+            BOSS_DEATH: 7
         };
         let currentState = GAME_STATE.PLAYING;
         
@@ -4762,14 +4765,14 @@
             if (event.shiftKey && event.code === 'Digit3') {
                 showLoadingScreen(() => {
                     currentLevel = 3;
-                    player.position.set(0, 15, 0);
+                    player.position.set(109, 72, -430);
                     velocity.set(0, 0, 0);
                     coins = 0; keys = 0; health = MAX_HEALTH;
                     voidDamageCooldown = 0; playerHitCooldown = 0;
                     FL_isDead = false; FL_deathTimer = -1; FL_deathByEnemy = false;
                     FL_deathPivot.rotation.x = 0; FL_bodyGroup.rotation.x = 0; FL_bodyGroup.rotation.z = 0;
                     FL_deathStars.visible = false; FL_deathStars.rotation.y = 0;
-                    checkpointPos.set(0, 15, 0);
+                    checkpointPos.set(109, 72, -430);
                     lastInputTime = performance.now() / 1000; isAFK = false;
                     updateHUD();
                     _clearLevelObjects();
@@ -4795,13 +4798,13 @@
                 togglePause();
                 return;
             }
-            if (currentState === GAME_STATE.PLAYING) {
+            if (currentState === GAME_STATE.PLAYING || currentState === GAME_STATE.BOSS_FIGHT) {
                 keysPressed[event.code] = true;
                 lastInputTime = performance.now() / 1000;
                 isAFK = false;
                 
                 // Salto e Duplo Salto
-                if (event.code === 'Space' && !FL_isDead) {
+                if (event.code === 'Space' && !FL_isDead && (currentState === GAME_STATE.PLAYING || currentState === GAME_STATE.BOSS_FIGHT)) {
                     if (isGrounded) {
                         velocity.y = jumpForce;
                         isGrounded = false;
@@ -4823,13 +4826,23 @@
         }
 
         function togglePause() {
+            // Não pausa durante cutscenes do boss
+            if (currentState === GAME_STATE.BOSS_INTRO || currentState === GAME_STATE.BOSS_DEATH) return;
+            if (currentState === GAME_STATE.BOSS_FIGHT) {
+                currentState = GAME_STATE.PAUSED;
+                document.getElementById('pause-menu').style.display = 'flex';
+                const mc = document.getElementById('mobile-controls');
+                if (mc) mc.style.visibility = 'hidden';
+                return;
+            }
             if (currentState === GAME_STATE.PLAYING) {
                 currentState = GAME_STATE.PAUSED;
                 document.getElementById('pause-menu').style.display = 'flex';
                 const mc = document.getElementById('mobile-controls');
                 if (mc) mc.style.visibility = 'hidden';
             } else {
-                currentState = GAME_STATE.PLAYING;
+                const wasBossFight = _sandBossActive && _sandBoss !== null;
+                currentState = wasBossFight ? GAME_STATE.BOSS_FIGHT : GAME_STATE.PLAYING;
                 document.getElementById('pause-menu').style.display = 'none';
                 const mc = document.getElementById('mobile-controls');
                 if (mc) mc.style.visibility = 'visible';
@@ -4861,6 +4874,12 @@
             isAFK = false;
             updateHUD();
             
+            // Reset do boss
+            if (_sandBoss) { destroySandBoss(); }
+            _sandBossActive = false; _sandBossHP = 3; _sandBossPhase = 0;
+            _sandBossState = 'none'; _sandBossHitCooldown = 0;
+            _sandBossWaveObjs = []; _sbClearSlamZone(); _sbClearClawZone();
+
             // Remove e recarrega coletáveis e portões existentes
             collectibles.forEach(c => scene.remove(c));
             collectibles.length = 0;
@@ -5691,10 +5710,15 @@
             createDecoration(103, 67, -411, 'kelp');
             createDecoration(116, 67, -401, 'coralPink');
 
+            // ── PONTE ATÉ À ARENA ────────────────────────────────────────────────────
+            // Liga a plataforma do guarda (topo=67, Z=-406) à arena (topo=70, Z=-430)
+            // Ponte ligeiramente inclinada: mais baixa na entrada, mais alta na arena
+            createPlatform(109, 36, -420, 12, 60, 24, COLORS_L3.stoneDark, 4); // topo=66→70, ponte
+
             // ── ARENA DO BOSS ─────────────────────────────────────────────────────
             // Plataforma grande e plana — topo=70, X centro=109, Z centro=-470
             // Dimensões: 60 de largura (X), 80 de profundidade (Z)
-            createPlatform(109, 40, -470, 60, 60, 80, COLORS_L3.stoneDark, 4); // topo=70
+            createPlatform(109, 40, -470, 60, 60, 80, COLORS_L3.stoneDark, 1); // topo=70
 
             // Decorações nas bordas da arena
             createDecoration( 82, 70, -440, 'coralPink');
@@ -5741,6 +5765,12 @@
                 collidableObjects.push(wMesh);
             }
             // Frente (Z≈-429) fica ABERTA — entrada do jogador
+
+            // Trigger invisível de entrada na arena (caixa fina na entrada)
+            _sandBossTriggerBox = new THREE.Box3(
+                new THREE.Vector3(80, 68, -440),
+                new THREE.Vector3(138, 90, -435)
+            );
         }
 
         // ===== INIMIGOS BYTEBOT =====
@@ -6590,6 +6620,16 @@
                 updateCollectibles(delta);
                 updateParticles(delta);
                 updateEnemies(delta);
+
+                // Trigger de entrada na arena do boss
+                if (_sandBossTriggerBox && !_sandBossActive && currentLevel === 3) {
+                    const pp = player.position;
+                    if (_sandBossTriggerBox.containsPoint(pp)) {
+                        _sandBossTriggerBox = null; // dispara só uma vez
+                        startBossIntro();
+                    }
+                }
+
                 checkGates();
                 updateFooshLooketAnimation(delta, clock.elapsedTime);
 
@@ -6619,6 +6659,51 @@
                     if (FL_mouth) FL_mouth.visible = FL_anim !== 'jump';
                     if (FL_mouthOpen) FL_mouthOpen.visible = FL_anim === 'jump';
                 }
+            } else if (currentState === GAME_STATE.BOSS_INTRO ||
+                       currentState === GAME_STATE.BOSS_FIGHT ||
+                       currentState === GAME_STATE.BOSS_DEATH) {
+                // BOSS_INTRO: câmera de cutscene, sem input do jogador
+                // BOSS_FIGHT: tudo roda normalmente
+                // BOSS_DEATH: câmera de cutscene, sem input do jogador
+                if (currentState === GAME_STATE.BOSS_FIGHT) {
+                    // Conta regressiva da animação de morte (faltava aqui — causava o bug de não reviver)
+                    if (FL_isDead) {
+                        FL_deathTimer -= delta;
+                        if (FL_deathTimer <= 0) {
+                            FL_isDead = false;
+                            FL_deathTimer = -1;
+                            if (FL_deathByEnemy) {
+                                player.position.copy(checkpointPos);
+                                FL_deathByEnemy = false;
+                            }
+                            respawnBlinkTimer = 2.5;
+                            playRespawnSound();
+                            FL_deathPivot.rotation.x = 0;
+                            FL_bodyGroup.rotation.x = 0;
+                            FL_bodyGroup.rotation.z = 0;
+                            FL_deathStars.visible = false;
+                            FL_deathStars.rotation.y = 0;
+                            FL_smooth.bodyLeanX = 0;
+                            FL_smooth.bodyLeanZ = 0;
+                        }
+                    }
+                    updateMovingPlatforms(delta);
+                    updatePhysics(delta);
+                    updateCollectibles(delta);
+                    updateEnemies(delta);
+                    updateScroll(delta);
+                    updateSmokeParticles(delta);
+                    updateParticles(delta);
+                    updateComboTexts(delta);
+                    updateFooshLooketAnimation(delta, clock.elapsedTime);
+                    updateCamera();
+                    if (playerHitCooldown > 0) playerHitCooldown -= delta;
+                    if (voidDamageCooldown > 0) voidDamageCooldown -= delta;
+                    _cullTimer += delta;
+                    if (_cullTimer >= CULL_INTERVAL) { _cullTimer = 0; cullDistantObjects(); }
+                }
+                updateSandBoss(delta);
+
             } else if (currentState === GAME_STATE.WIN_LANDING) {
                 // Fase de aterragem: cai com gravidade até chegar ao chão
                 velocity.x = 0;
@@ -7186,6 +7271,1127 @@
         // ===== FIM MAIN MENU =====
         // ===== FIM TELA DE TÍTULO =====
 
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // MR. SANDMAN — BOSS SISTEMA COMPLETO
+        // ═══════════════════════════════════════════════════════════════════════
+
+        // --- VARIÁVEIS GLOBAIS DO BOSS ---
+        let _sandBoss            = null;   // THREE.Group raiz
+        let _sandBossTriggerBox  = null;   // Box3 de entrada
+        let _sandBossActive      = false;  // luta em curso
+        let _sandBossHP          = 3;      // vidas
+        let _sandBossPhase       = 0;      // 0=normal, 1=rápido (após 2° hit)
+        let _sandBossState       = 'none'; // none/intro/idle/slam/attack/waves/tired/stunned/death
+        let _sandBossTimer       = 0;      // timer de estado
+        let _sandBossFightTimer  = 0;      // timer geral da luta (para cansaço)
+        let _sandBossHitCooldown = 0;      // invencibilidade após hit
+        let _sandBossStunTimer   = 0;      // tempo atordoado
+        let _sandBossAttackSeq   = [];     // sequência de ataques
+        let _sandBossAttackIdx   = 0;
+        let _sandBossWaveObjs    = [];     // ondas ativas
+        let _sandBossArenaCenterX = 109;
+        let _sandBossArenaCenterZ = -480;
+        let _sandBossGroundY      = 70;    // topo da plataforma da arena
+        const _BOSS_SCALE         = 1.7;   // fator de escala do boss (corpo todo)
+        const _BOSS_Y_LIFT        = 0.7;   // eleva a altura de repouso para o corpo não ficar embaixo da plataforma
+
+        // Intervalos (em segundos) — diminuem na fase 2
+        const _BOSS_TIRED_INTERVAL = [18, 12];   // fase 0 / fase 1
+        const _BOSS_TIRED_DURATION = [4.0, 2.8]; // duração do cansaço
+        const _BOSS_STUN_DURATION  = [1.8, 1.2];
+        const _BOSS_ATTACK_PAUSE   = [1.1, 0.6]; // pausa entre ataques
+
+        // Materiais de areia (reutilizados pelo boss)
+        let _sbMat = null; // ShaderMaterial de partículas — criado em spawnSandBoss()
+
+        // Grupos articulados (criados em spawnSandBoss)
+        let _sbRoot        = null;
+        let _sbChestPivot  = null;
+        let _sbNeckPivot   = null;
+        let _sbLShoulder   = null;
+        let _sbLElbow      = null;
+        let _sbRShoulder   = null;
+        let _sbRElbow      = null;
+        let _sbMatUniforms = null;
+        let _sbAnimTime    = 0;
+        let _sbTargets     = {};
+
+        // Hitbox da cabeça (para stomp)
+        let _sbHeadBox = null; // Box3 atualizado a cada frame
+
+        // --- TEXTURA DE AREIA (igual ao protótipo) ---
+        function _sbCreateSandTexture() {
+            const sz = 64;
+            const cv = document.createElement('canvas');
+            cv.width = cv.height = sz;
+            const ctx = cv.getContext('2d');
+            ctx.clearRect(0, 0, sz, sz);
+            ctx.beginPath();
+            const c = sz / 2, np = 6, r = sz * 0.4;
+            for (let i = 0; i < np; i++) {
+                const a = (i / np) * Math.PI * 2;
+                const rr = r * (0.8 + Math.random() * 0.3);
+                const x = c + Math.cos(a) * rr, y = c + Math.sin(a) * rr;
+                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+            const g = ctx.createRadialGradient(sz*.35, sz*.35, 2, c, c, sz*.45);
+            g.addColorStop(0,   '#fff4e0');
+            g.addColorStop(0.4, '#f0d3b0');
+            g.addColorStop(0.8, '#a68563');
+            g.addColorStop(1.0, 'rgba(0,0,0,0)');
+            ctx.fillStyle = g; ctx.fill();
+            const id = ctx.getImageData(0, 0, sz, sz);
+            const d = id.data;
+            for (let i = 0; i < d.length; i += 4) {
+                if (d[i+3] > 15) {
+                    const n = (Math.random() - 0.5) * 60;
+                    d[i]   = Math.max(0, Math.min(255, d[i]   + n));
+                    d[i+1] = Math.max(0, Math.min(255, d[i+1] + n));
+                    d[i+2] = Math.max(0, Math.min(255, d[i+2] + n));
+                    d[i+3] = Math.max(10, Math.min(255, d[i+3] - Math.random() * 30));
+                }
+            }
+            ctx.putImageData(id, 0, 0);
+            return new THREE.CanvasTexture(cv);
+        }
+
+        // --- SHADERS DE PARTÍCULAS ---
+        const _sbVertShader = `
+            attribute vec3 customColor;
+            varying vec3 vColor;
+            varying float vAlpha;
+            uniform float time;
+            uniform float sizeMultiplier;
+            uniform float eyePulse;
+            uniform float collapse;
+            float hash(float n){return fract(sin(n)*43758.5453123);}
+            void main(){
+                vColor = customColor;
+                vec3 pos = position;
+                vAlpha = 1.0;
+                float rawId = position.x*12.9+position.y*78.2+position.z*45.1;
+                float gs = hash(rawId);
+                if(vColor.r < 0.9 || vColor.g > 0.1){
+                    pos.x += sin(time*(4.0+gs*2.0)+pos.y*8.0)*0.05;
+                    pos.y += cos(time*(3.0+gs*2.0)+pos.z*8.0)*0.04;
+                    pos.z += sin(time*(4.5+gs*2.0)+pos.x*8.0)*0.05;
+                }
+                vec4 worldPos = modelMatrix * vec4(pos,1.0);
+                float pC = 0.0;
+                if(collapse > 0.0){
+                    float noise = fract(sin(dot(worldPos.xyz,vec3(12.9898,78.233,45.164)))*43758.5453);
+                    float hf = clamp((worldPos.y+2.0)/6.0,0.0,1.0);
+                    float thr = (1.0-hf)*0.5+noise*0.3;
+                    if(collapse > thr){
+                        pC = clamp((collapse-thr)/(1.0-thr),0.0,1.0);
+                        pos.x += (sin(worldPos.y*2.5+time*6.0)*0.6+2.2)*pC*8.0+(noise-0.5)*pC*4.0;
+                        pos.y += cos(worldPos.x*2.5+time*5.0)*0.5*pC*4.0+(fract(noise*7.0)*2.0)*pC-pC*pC*4.5;
+                        pos.z += sin(worldPos.z*2.5+time*4.0)*0.5*pC*4.0+(fract(noise*13.0)-0.5)*pC*4.0;
+                        vAlpha = 1.0-pC;
+                    }
+                }
+                vec4 mvPos = modelViewMatrix * vec4(pos,1.0);
+                float baseSize = (vColor.r>0.9&&vColor.g<0.1)?75.0*eyePulse:(35.0+gs*40.0);
+                baseSize *= (1.0-pC*0.85);
+                gl_PointSize = sizeMultiplier*(baseSize/-mvPos.z);
+                gl_Position = projectionMatrix*mvPos;
+                gl_Position.z -= 0.0015 * gl_Position.w;
+            }
+        `;
+        const _sbFragShader = `
+            uniform sampler2D sandTexture;
+            varying vec3 vColor;
+            varying float vAlpha;
+            void main(){
+                vec4 tc = texture2D(sandTexture, gl_PointCoord);
+                if(tc.a < 0.1) discard;
+                float bright = (vColor.r>0.9&&vColor.g<0.1)?1.5:1.0;
+                gl_FragColor = vec4(vColor*bright, tc.a*vAlpha*0.95);
+            }
+        `;
+
+        const _sbSandColors = [
+            new THREE.Color(0xfff0db), new THREE.Color(0xfad6a5),
+            new THREE.Color(0xe0b98c), new THREE.Color(0xffe4b5),
+            new THREE.Color(0xdeb887), new THREE.Color(0xd2b48c)
+        ];
+
+        // Geometria de esfera baixíssima resolução, compartilhada por todas as instâncias
+        // (poucos triângulos por grão -> mantém o desempenho mesmo com milhares de instâncias)
+        let _sbGrainGeo = null;
+        function _sbGetGrainGeo() {
+            if (!_sbGrainGeo) _sbGrainGeo = new THREE.IcosahedronGeometry(0.09, 0);
+            return _sbGrainGeo;
+        }
+
+        // Lista de todos os InstancedMesh do corpo do boss + seus dados-base,
+        // usada em _sbUpdateGrains() para aplicar o leve balanço e o collapse da morte.
+        let _sbGrainMeshes = [];
+
+        function _sbMakePart(builderCb) {
+            const positions = [], colorIdx = [], eyeFlags = [];
+            function addPt(x, y, z, isEye = false) {
+                positions.push(x, y, z);
+                eyeFlags.push(isEye ? 1 : 0);
+                colorIdx.push(isEye ? -1 : Math.floor(Math.random() * _sbSandColors.length));
+            }
+            builderCb(addPt);
+
+            const totalCount = positions.length / 3;
+            const group = new THREE.Group();
+            const dummy = new THREE.Object3D();
+
+            // Agrupa por cor: 1 InstancedMesh por cor de areia + 1 para o olho (vermelho)
+            const buckets = []; // { colorIdx (-1 = olho), indices: [] }
+            for (let i = 0; i < totalCount; i++) {
+                const ci = colorIdx[i];
+                let bucket = buckets.find(b => b.colorIdx === ci);
+                if (!bucket) { bucket = { colorIdx: ci, indices: [] }; buckets.push(bucket); }
+                bucket.indices.push(i);
+            }
+
+            for (const bucket of buckets) {
+                const n = bucket.indices.length;
+                const color = bucket.colorIdx === -1 ? new THREE.Color(0xff0000) : _sbSandColors[bucket.colorIdx];
+                const mat = new THREE.MeshBasicMaterial({ color: color });
+                const mesh = new THREE.InstancedMesh(_sbGetGrainGeo(), mat, n);
+                mesh.castShadow = false;
+                mesh.receiveShadow = false;
+
+                const baseScales = new Float32Array(n);
+                const basePos = new Float32Array(n * 3);
+                const eyeFlagsArr = new Uint8Array(n);
+                for (let k = 0; k < n; k++) {
+                    const i = bucket.indices[k];
+                    const isEye = eyeFlags[i] === 1;
+                    eyeFlagsArr[k] = isEye ? 1 : 0;
+                    const s = isEye ? 0.7 : (0.6 + Math.random() * 0.9); // grãos de tamanho variado
+                    baseScales[k] = s;
+                    basePos[k*3] = positions[i*3]; basePos[k*3+1] = positions[i*3+1]; basePos[k*3+2] = positions[i*3+2];
+                    dummy.position.set(basePos[k*3], basePos[k*3+1], basePos[k*3+2]);
+                    dummy.scale.setScalar(s);
+                    dummy.updateMatrix();
+                    mesh.setMatrixAt(k, dummy.matrix);
+                }
+                mesh.instanceMatrix.needsUpdate = true;
+                group.add(mesh);
+
+                _sbGrainMeshes.push({ mesh, basePos, baseScales, eyeFlags: eyeFlagsArr, count: n, dummy: new THREE.Object3D() });
+            }
+
+            return group;
+        }
+
+        function _sbFillEllipsoid(add, cx,cy,cz, rx,ry,rz, count, isEye=false) {
+            for (let i = 0; i < count; i++) {
+                const u=Math.random(), v=Math.random();
+                const theta=u*2*Math.PI, phi=Math.acos(2*v-1), r=Math.cbrt(Math.random());
+                add(cx+r*rx*Math.sin(phi)*Math.cos(theta), cy+r*ry*Math.sin(phi)*Math.sin(theta), cz+r*rz*Math.cos(phi), isEye);
+            }
+        }
+
+        // --- SPAWN DO BOSS ---
+        function spawnSandBoss() {
+            if (_sandBoss) return;
+
+            // Material compartilhado
+            _sbMatUniforms = {
+                time:           { value: 0 },
+                sizeMultiplier: { value: Math.min(window.devicePixelRatio, 2) },
+                eyePulse:       { value: 1.0 },
+                collapse:       { value: 0.0 },
+                sandTexture:    { value: _sbCreateSandTexture() }
+            };
+            _sbMat = new THREE.ShaderMaterial({
+                uniforms: _sbMatUniforms,
+                vertexShader:   _sbVertShader,
+                fragmentShader: _sbFragShader,
+                transparent: true, depthWrite: false, depthTest: true,
+                blending: THREE.NormalBlending
+            });
+
+            // Grupo raiz — posicionado no centro da arena, soterrado no chão
+            _sbRoot = new THREE.Group();
+            _sbRoot.scale.setScalar(_BOSS_SCALE); // boss maior
+            // Boss fica no centro X da arena, mais pra trás em Z
+            _sbRoot.position.set(_sandBossArenaCenterX, _sandBossGroundY - 9, _sandBossArenaCenterZ);
+            scene.add(_sbRoot);
+
+            // Torso
+            _sbChestPivot = new THREE.Group();
+            _sbChestPivot.position.set(0, 1.5, 0);
+            _sbRoot.add(_sbChestPivot);
+
+            _sbChestPivot.add(_sbMakePart(add => {
+                _sbFillEllipsoid(add, 0, -0.5, 0, 1.4, 1.2, 1.1, 2000);
+                _sbFillEllipsoid(add, 0,  1.0, 0, 2.2, 1.5, 1.3, 3500);
+            }));
+
+            // Pescoço + cabeça
+            _sbNeckPivot = new THREE.Group();
+            _sbNeckPivot.position.set(0, 2.4, 0);
+            _sbChestPivot.add(_sbNeckPivot);
+            _sbNeckPivot.add(_sbMakePart(add => {
+                _sbFillEllipsoid(add, 0, 0.8, 0, 0.9, 1.2, 0.9, 1800);
+                _sbFillEllipsoid(add, -0.35, 1.0, 0.75, 0.12, 0.08, 0.08, 120, true);
+                _sbFillEllipsoid(add,  0.35, 1.0, 0.75, 0.12, 0.08, 0.08, 120, true);
+                for (let i = 0; i < 450; i++) {
+                    const yr = Math.random(), y = 0.1 - yr * 0.7;
+                    const cr = 0.35 * (1 - yr), theta = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * cr;
+                    add(r*Math.cos(theta), y, 0.6 + r*Math.sin(theta));
+                }
+            }));
+
+            // Ombro esquerdo
+            _sbLShoulder = new THREE.Group();
+            _sbLShoulder.position.set(-2.4, 1.6, 0);
+            _sbChestPivot.add(_sbLShoulder);
+            _sbLShoulder.add(_sbMakePart(add => {
+                _sbFillEllipsoid(add, 0, 0, 0, 1.1, 1.1, 1.1, 900);
+                for (let i = 0; i < 400; i++) {
+                    const yr = Math.random(), y = 0.6 + yr * 1.8;
+                    const cr = 0.5 * (1 - yr), theta = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * cr;
+                    add(-0.2 + r*Math.cos(theta), y, r*Math.sin(theta));
+                }
+                _sbFillEllipsoid(add, -0.4, -1.0, 0.2, 0.7, 1.2, 0.7, 1100);
+            }));
+            _sbLElbow = new THREE.Group();
+            _sbLElbow.position.set(-0.6, -1.8, 0.2);
+            _sbLShoulder.add(_sbLElbow);
+            _sbLElbow.add(_sbMakePart(add => {
+                _sbFillEllipsoid(add, -0.2, -0.8, 0.4, 0.6, 1.1, 0.6, 900);
+                for (let i = 0; i < 600; i++) {
+                    const yr = Math.random(), y = -1.6 - yr * 1.2;
+                    const cr = 0.6 * (1 - yr), theta = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * cr;
+                    add(-0.2 + r*Math.cos(theta), y, 0.8 + r*Math.sin(theta));
+                }
+            }));
+
+            // Ombro direito
+            _sbRShoulder = new THREE.Group();
+            _sbRShoulder.position.set(2.4, 1.6, 0);
+            _sbChestPivot.add(_sbRShoulder);
+            _sbRShoulder.add(_sbMakePart(add => {
+                _sbFillEllipsoid(add, 0, 0, 0, 1.1, 1.1, 1.1, 900);
+                for (let i = 0; i < 400; i++) {
+                    const yr = Math.random(), y = 0.6 + yr * 1.8;
+                    const cr = 0.5 * (1 - yr), theta = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * cr;
+                    add(0.2 + r*Math.cos(theta), y, r*Math.sin(theta));
+                }
+                _sbFillEllipsoid(add, 0.4, -1.0, 0.2, 0.7, 1.2, 0.7, 1100);
+            }));
+            _sbRElbow = new THREE.Group();
+            _sbRElbow.position.set(0.6, -1.8, 0.2);
+            _sbRShoulder.add(_sbRElbow);
+            _sbRElbow.add(_sbMakePart(add => {
+                _sbFillEllipsoid(add, 0.2, -0.8, 0.4, 0.6, 1.1, 0.6, 900);
+                for (let i = 0; i < 600; i++) {
+                    const yr = Math.random(), y = -1.6 - yr * 1.2;
+                    const cr = 0.6 * (1 - yr), theta = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * cr;
+                    add(0.2 + r*Math.cos(theta), y, 0.8 + r*Math.sin(theta));
+                }
+            }));
+
+            _sbTargets = {
+                chestY: 1.5, chestRX: 0.5, chestRY: 0, chestRZ: 0,
+                neckRX: 0.5, neckRY: 0,
+                lSRX: 0, lSRZ: 0, lERX: 0,
+                rSRX: 0, rSRZ: 0, rERX: 0,
+                rootShakeX: 0, rootShakeY: 0,
+                rootY: _sandBossGroundY - 9, // começa soterrado; a intro sobe até groundY
+                collapse: 0
+            };
+
+            _sbHeadBox = new THREE.Box3();
+            _sandBoss = _sbRoot;
+            _sbInitLooseGrains();
+        }
+
+        // --- DESTRUIR BOSS ---
+        function destroySandBoss() {
+            if (!_sandBoss) return;
+            scene.remove(_sandBoss);
+            _sandBoss = null; _sbRoot = null;
+            _sandBossActive = false;
+            _sandBossState  = 'none';
+            _sbGrainMeshes = [];
+            _sbCollapseValue = 0;
+            _sbClearLooseGrains();
+            // Remove ondas
+            _sandBossWaveObjs.forEach(w => scene.remove(w.mesh));
+            _sandBossWaveObjs = [];
+        }
+
+        // --- INICIAR CUTSCENE DE ENTRADA ---
+        function startBossIntro() {
+            if (_sandBossActive) return;
+            _sandBossActive = true;
+            spawnSandBoss();
+            currentState  = GAME_STATE.BOSS_INTRO;
+            _sandBossState = 'intro';
+            _sandBossTimer = 0;
+            _sbAnimTime    = clock.elapsedTime;
+
+            // Congela input
+            Object.keys(keysPressed).forEach(k => delete keysPressed[k]);
+
+            // Oculta controles mobile
+            const mc = document.getElementById('mobile-controls');
+            if (mc) mc.style.visibility = 'hidden';
+
+            showNotification('⚠️ Um inimigo poderoso apareceu!');
+        }
+
+        // --- SORTEAR PRÓXIMO ATAQUE ---
+        function _sbNextAttack() {
+            const pool = ['slam', 'attack', 'waves'];
+            // Evita repetir o mesmo dois seguidos
+            let pick;
+            do { pick = pool[Math.floor(Math.random() * pool.length)]; }
+            while (pick === _sandBossAttackSeq[_sandBossAttackSeq.length - 1]);
+            _sandBossAttackSeq.push(pick);
+            return pick;
+        }
+
+        // Velocidade dos ataques conforme fase
+        function _sbSpeed() { return _sandBossPhase === 0 ? 1.4 : 2.1; }
+
+        // --- ONDAS DO SLAM DE CHÃO ---
+        let _sbWaveDir = 1; // 1 = esq→dir, -1 = dir→esq
+        function _sbMakeSandWaveMesh() {
+            // Onda de areia como esferas instanciadas — mesmo sistema visual do boss
+            const count = 320;
+            const group = new THREE.Group();
+            const dummy = new THREE.Object3D();
+
+            // Agrupa por cor (mesma paleta do boss), 1 InstancedMesh por cor
+            const buckets = _sbSandColors.map(() => []);
+            const basePosAll = [];
+            for (let i = 0; i < count; i++) {
+                const pz = (Math.random() - 0.5) * 52;  // comprimento da onda (cobre arena)
+                const px = (Math.random() - 0.5) * 1.8; // espessura fina
+                const normZ = Math.abs(pz) / 26;
+                const maxY  = 2.2 * (1 - normZ * normZ * 0.4);
+                const py    = Math.random() * maxY;
+                const ci = Math.floor(Math.random() * _sbSandColors.length);
+                buckets[ci].push([px, py, pz]);
+            }
+
+            for (let ci = 0; ci < buckets.length; ci++) {
+                const pts = buckets[ci];
+                if (pts.length === 0) continue;
+                const mat = new THREE.MeshBasicMaterial({ color: _sbSandColors[ci] });
+                const mesh = new THREE.InstancedMesh(_sbGetGrainGeo(), mat, pts.length);
+                for (let k = 0; k < pts.length; k++) {
+                    const [px, py, pz] = pts[k];
+                    dummy.position.set(px, py, pz);
+                    dummy.scale.setScalar(0.6 + Math.random() * 0.9);
+                    dummy.updateMatrix();
+                    mesh.setMatrixAt(k, dummy.matrix);
+                }
+                mesh.instanceMatrix.needsUpdate = true;
+                group.add(mesh);
+            }
+            return group;
+        }
+
+        function _sbSpawnWaves() {
+            _sbWaveDir = Math.random() < 0.5 ? 1 : -1;
+            const startX = _sbWaveDir > 0 ? _sandBossArenaCenterX - 30 : _sandBossArenaCenterX + 30;
+            for (let i = 0; i < 3; i++) {
+                const wMesh = _sbMakeSandWaveMesh();
+                wMesh.position.set(startX, _sandBossGroundY, _sandBossArenaCenterZ - 12 + i * 12);
+                scene.add(wMesh);
+                _sandBossWaveObjs.push({
+                    mesh: wMesh,
+                    velX: _sbWaveDir * (10 + i * 2.5) * _sbSpeed(),
+                    life: 3.5
+                });
+            }
+        }
+
+        // --- ZONA DE PERIGO DO SLAM ---
+        let _sbSlamZone  = null; // Box3 — área do slam
+        let _sbSlamTimer = 0;
+        function _sbShowSlamZone() {
+            // Marca visual no chão — começa pequena e cresce (efeito de onda de choque se expandindo)
+            const zGeo = new THREE.RingGeometry(0.1, 20, 32);
+            const zMat = new THREE.MeshBasicMaterial({ color: 0xff4400, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide });
+            const zMesh = new THREE.Mesh(zGeo, zMat);
+            zMesh.rotation.x = -Math.PI / 2;
+            zMesh.scale.setScalar(0.05);
+            zMesh.position.set(_sandBossArenaCenterX, _sandBossGroundY + 0.05, _sandBossArenaCenterZ);
+            scene.add(zMesh);
+            _sbSlamZone = { mesh: zMesh, box: new THREE.Box3(
+                new THREE.Vector3(_sandBossArenaCenterX - 20, _sandBossGroundY, _sandBossArenaCenterZ - 20),
+                new THREE.Vector3(_sandBossArenaCenterX + 20, _sandBossGroundY + 6,  _sandBossArenaCenterZ + 20)
+            )};
+            _sbSlamTimer = 0;
+        }
+        // Anima o crescimento da onda de choque (chamado durante o windup do slam)
+        function _sbSlamZoneGrow(progress) {
+            if (!_sbSlamZone) return;
+            const s = 0.05 + Math.min(1, Math.max(0, progress)) * 0.95;
+            _sbSlamZone.mesh.scale.setScalar(s);
+        }
+        function _sbClearSlamZone() {
+            if (_sbSlamZone) { scene.remove(_sbSlamZone.mesh); _sbSlamZone = null; }
+        }
+
+        // --- ZONA DE PERIGO DO ATAQUE DE GARRAS ---
+        // Agora a zona "persegue" o jogador por um tempinho antes de travar na posição final,
+        // e o visual usa 3 riscos (marcas de garra) em vez de um retângulo liso.
+        let _sbClawZone = null;
+        function _sbShowClawZone(side) {
+            // side: -1=esquerda, 1=direita. Começa seguindo o jogador.
+            const group = new THREE.Group();
+            group.rotation.x = -Math.PI / 2;
+            group.position.set(_sandBossArenaCenterX, _sandBossGroundY + 0.06, _sandBossArenaCenterZ);
+            // Círculo delimitando a área de perigo (pequeno, contido)
+            const circleGeo = new THREE.RingGeometry(5.6, 6.2, 32);
+            const circleMat = new THREE.MeshBasicMaterial({ color: 0xcc1100, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide });
+            const circleMesh = new THREE.Mesh(circleGeo, circleMat);
+            group.add(circleMesh);
+            scene.add(group);
+            _sbClawZone = {
+                group, side,
+                following: true,
+                cx: 0, cz: 0, // posição relativa ao centro da arena (atualizada por frame)
+                box: new THREE.Box3()
+            };
+            _sbUpdateClawZoneBox();
+        }
+        function _sbUpdateClawZoneBox() {
+            if (!_sbClawZone) return;
+            const cx = _sandBossArenaCenterX + _sbClawZone.cx;
+            const cz = _sandBossArenaCenterZ + _sbClawZone.cz;
+            _sbClawZone.box.set(
+                new THREE.Vector3(cx - 6, _sandBossGroundY, cz - 12),
+                new THREE.Vector3(cx + 6, _sandBossGroundY + 5, cz + 12)
+            );
+        }
+        // Faz a zona seguir o X/Z do jogador (chamado durante a janela de "telegraph")
+        function _sbClawZoneTrackPlayer(lerpAmt) {
+            if (!_sbClawZone || !_sbClawZone.following) return;
+            const targetCx = THREE.MathUtils.clamp(player.position.x - _sandBossArenaCenterX, -22, 22);
+            const targetCz = THREE.MathUtils.clamp(player.position.z - _sandBossArenaCenterZ, -25, 25);
+            _sbClawZone.cx += (targetCx - _sbClawZone.cx) * lerpAmt;
+            _sbClawZone.cz += (targetCz - _sbClawZone.cz) * lerpAmt;
+            _sbClawZone.group.position.set(_sandBossArenaCenterX + _sbClawZone.cx, _sandBossGroundY + 0.06, _sandBossArenaCenterZ + _sbClawZone.cz);
+            _sbUpdateClawZoneBox();
+        }
+        // Trava a zona na posição atual (para de seguir o jogador)
+        function _sbClawZoneLock() {
+            if (_sbClawZone) _sbClawZone.following = false;
+        }
+        function _sbClearClawZone() {
+            if (_sbClawZone) { scene.remove(_sbClawZone.group); _sbClawZone = null; }
+        }
+
+        // --- APLICAR DANO AO JOGADOR PELO BOSS ---
+        function _sbDamagePlayer(amount) {
+            if (playerHitCooldown > 0 || FL_isDead) return;
+            health = Math.max(0, health - amount);
+            playerHitCooldown = 1.8;
+            playPlayerHitSound();
+            updateHUD();
+            // Knockback para longe do boss
+            const dx = player.position.x - _sandBossArenaCenterX;
+            const dz = player.position.z - _sandBossArenaCenterZ;
+            const d  = Math.sqrt(dx*dx + dz*dz) || 1;
+            velocity.x = (dx/d) * 16;
+            velocity.z = (dz/d) * 16;
+            velocity.y = 10;
+            isGrounded = false;
+            if (health <= 0) {
+                health = MAX_HEALTH; updateHUD();
+                if (coins < 20) coins = 0; else coins = Math.floor(coins * 0.7);
+                updateHUD();
+                velocity.set(0,0,0); isGrounded = false;
+                FL_isDead = true; FL_deathByEnemy = true; FL_deathTimer = 4.0;
+                playDeathSound();
+                showNotification('💀 Você morreu! Perdeu moedas...');
+            }
+        }
+
+        // --- BOSS RECEBE HIT NA CABEÇA ---
+        function _sbTakeHit() {
+            if (_sandBossHitCooldown > 0) return;
+            if (_sandBossState !== 'tired') return;
+            _sandBossHP--;
+            _sandBossHitCooldown = 2.0;
+            velocity.y = 14; // bounce
+            playComboSound(2);
+            showNotification(_sandBossHP > 0 ? `💥 Hit! ${_sandBossHP} vida(s) restantes` : '💀 Mr. SandMan derrotado!');
+            if (_sandBossHP <= 0) {
+                // Morte
+                _sbStartDeath();
+            } else {
+                // Atordoado
+                _sandBossState = 'stunned';
+                _sandBossTimer = 0;
+                if (_sandBossHP === 1) _sandBossPhase = 1; // acelera
+            }
+        }
+
+        // --- INICIAR CUTSCENE DE MORTE ---
+        function _sbStartDeath() {
+            currentState   = GAME_STATE.BOSS_DEATH;
+            _sandBossState = 'death';
+            _sandBossTimer = 0;
+            _sbAnimTime    = clock.elapsedTime;
+            _sbClearSlamZone();
+            _sbClearClawZone();
+            _sandBossWaveObjs.forEach(w => scene.remove(w.mesh));
+            _sandBossWaveObjs = [];
+            const mc = document.getElementById('mobile-controls');
+            if (mc) mc.style.visibility = 'hidden';
+            Object.keys(keysPressed).forEach(k => delete keysPressed[k]);
+        }
+
+        // --- LERP DO BOSS ---
+        function _sbApplyLerp(lerpSpeed) {
+            _sbChestPivot.position.y += (_sbTargets.chestY - _sbChestPivot.position.y) * lerpSpeed;
+            _sbChestPivot.rotation.x += (_sbTargets.chestRX - _sbChestPivot.rotation.x) * lerpSpeed;
+            _sbChestPivot.rotation.y += (_sbTargets.chestRY - _sbChestPivot.rotation.y) * lerpSpeed;
+            _sbChestPivot.rotation.z += (_sbTargets.chestRZ - _sbChestPivot.rotation.z) * lerpSpeed;
+            _sbNeckPivot.rotation.x  += (_sbTargets.neckRX  - _sbNeckPivot.rotation.x)  * lerpSpeed;
+            _sbNeckPivot.rotation.y  += (_sbTargets.neckRY  - _sbNeckPivot.rotation.y)  * lerpSpeed;
+            _sbLShoulder.rotation.x  += (_sbTargets.lSRX    - _sbLShoulder.rotation.x)  * lerpSpeed;
+            _sbLShoulder.rotation.z  += (_sbTargets.lSRZ    - _sbLShoulder.rotation.z)  * lerpSpeed;
+            _sbLElbow.rotation.x     += (_sbTargets.lERX    - _sbLElbow.rotation.x)     * lerpSpeed;
+            _sbRShoulder.rotation.x  += (_sbTargets.rSRX    - _sbRShoulder.rotation.x)  * lerpSpeed;
+            _sbRShoulder.rotation.z  += (_sbTargets.rSRZ    - _sbRShoulder.rotation.z)  * lerpSpeed;
+            _sbRElbow.rotation.x     += (_sbTargets.rERX    - _sbRElbow.rotation.x)     * lerpSpeed;
+            _sbRoot.position.x = _sandBossArenaCenterX + _sbTargets.rootShakeX;
+            // rootY controla a subida do boss; rootShakeY adiciona tremor por cima
+            _sbRoot.position.y += ((_sbTargets.rootY + _sbTargets.rootShakeY) - _sbRoot.position.y) * lerpSpeed;
+        }
+
+        // --- CÂMERA DA CUTSCENE ---
+        let _sbCutsceneCamPos    = new THREE.Vector3();
+        let _sbCutsceneCamTarget = new THREE.Vector3();
+        function _sbUpdateCutsceneCamera() {
+            // Câmera dá zoom no boss durante cutscenes
+            _sbCutsceneCamPos.set(_sandBossArenaCenterX, _sandBossGroundY + 8, _sandBossArenaCenterZ + 20);
+            _sbCutsceneCamTarget.set(_sandBossArenaCenterX, _sandBossGroundY + 4, _sandBossArenaCenterZ);
+            camera.position.lerp(_sbCutsceneCamPos, 0.06);
+            camera.lookAt(_sbCutsceneCamTarget);
+        }
+
+        // --- UPDATE PRINCIPAL DO BOSS ---
+        // --- ATUALIZAÇÃO DOS GRÃOS (instâncias) ---
+        // Substitui o vertex shader antigo: aplica vento leve, pulsação do olho (eyePulse)
+        // e a desintegração de morte (collapse) diretamente nas matrizes das instâncias.
+        // Por desempenho (milhares de instâncias), o vento é recalculado a cada 3 frames
+        // (efeito sutil, imperceptível o frame-skip) e o olho é atualizado isoladamente.
+        let _sbCollapseValue = 0;
+        let _sbGrainFrameSkip = 0;
+        function _sbUpdateGrains(t, eyePulse, collapseTarget, collapseLerp) {
+            _sbCollapseValue += (collapseTarget - _sbCollapseValue) * collapseLerp;
+            const collapse = _sbCollapseValue;
+            _sbGrainFrameSkip = (_sbGrainFrameSkip + 1) % 3;
+            const doWind = _sbGrainFrameSkip === 0;
+            if (!doWind && collapse <= 0.0001) {
+                // Nada visualmente relevante mudou neste frame (exceto o olho, que é 1 instância
+                // por parte do corpo) — evita reescrever milhares de matrizes sem necessidade.
+                for (const gd of _sbGrainMeshes) _sbUpdateEyeOnly(gd, eyePulse);
+                return;
+            }
+            for (const gd of _sbGrainMeshes) {
+                const { mesh, basePos, baseScales, eyeFlags, count, dummy } = gd;
+                for (let i = 0; i < count; i++) {
+                    const bx = basePos[i*3], by = basePos[i*3+1], bz = basePos[i*3+2];
+                    const isEye = eyeFlags[i] === 1;
+                    let x = bx, y = by, z = bz, scale = baseScales[i];
+
+                    if (!isEye) {
+                        const gsHash = Math.abs(Math.sin(bx*12.9 + by*78.2 + bz*45.1)) % 1;
+                        x += Math.sin(t*(4.0+gsHash*2.0) + by*8.0) * 0.05;
+                        y += Math.cos(t*(3.0+gsHash*2.0) + bz*8.0) * 0.04;
+                        z += Math.sin(t*(4.5+gsHash*2.0) + bx*8.0) * 0.05;
+                    } else {
+                        scale = baseScales[i] * (0.6 + eyePulse * 0.5); // pulsação do olho
+                    }
+
+                    // Collapse (desintegração na morte) — réplica simplificada do efeito do shader antigo
+                    if (collapse > 0.0001) {
+                        const noise = Math.abs(Math.sin(bx*12.9898 + by*78.233 + bz*45.164)) % 1;
+                        const hf = Math.min(1, Math.max(0, (by + 2.0) / 6.0));
+                        const thr = (1.0 - hf) * 0.5 + noise * 0.3;
+                        if (collapse > thr) {
+                            const pC = Math.min(1, Math.max(0, (collapse - thr) / (1.0 - thr)));
+                            x += (Math.sin(by*2.5 + t*6.0) * 0.6 + 2.2) * pC * 8.0 + (noise - 0.5) * pC * 4.0;
+                            y += Math.cos(bx*2.5 + t*5.0) * 0.5 * pC * 4.0 + (((noise*7.0)%1) * 2.0) * pC - pC*pC*4.5;
+                            z += Math.sin(bz*2.5 + t*4.0) * 0.5 * pC * 4.0 + (((noise*13.0)%1) - 0.5) * pC * 4.0;
+                            scale = scale * (1.0 - pC * 0.85);
+                        }
+                    }
+
+                    dummy.position.set(x, y, z);
+                    dummy.scale.setScalar(scale);
+                    dummy.updateMatrix();
+                    mesh.setMatrixAt(i, dummy.matrix);
+                }
+                mesh.instanceMatrix.needsUpdate = true;
+            }
+        }
+
+        // Atualiza só a instância do olho (índice fixo, sempre os 2 últimos grãos adicionados
+        // na cabeça) quando o resto do corpo não precisa ser recalculado neste frame.
+        function _sbUpdateEyeOnly(gd, eyePulse) {
+            const { mesh, basePos, baseScales, eyeFlags, count, dummy } = gd;
+            for (let i = 0; i < count; i++) {
+                if (eyeFlags[i] !== 1) continue;
+                dummy.position.set(basePos[i*3], basePos[i*3+1], basePos[i*3+2]);
+                dummy.scale.setScalar(baseScales[i] * (0.6 + eyePulse * 0.5));
+                dummy.updateMatrix();
+                mesh.setMatrixAt(i, dummy.matrix);
+            }
+            mesh.instanceMatrix.needsUpdate = true;
+        }
+
+        // --- GRÃOS SOLTOS CAINDO DO CORPO (toque de design: corpo "instável") ---
+        // Pool fixo de instâncias recicladas — nasce na superfície do boss, cai com
+        // gravidade leve e some (escala -> 0) em ~1s. Puramente visual, sem gameplay.
+        const _SB_LOOSE_GRAIN_POOL = 24;
+        let _sbLooseGrainMesh = null;
+        let _sbLooseGrains = []; // { active, x,y,z, vy, age, life, scale }
+        let _sbLooseGrainSpawnTimer = 0;
+
+        function _sbInitLooseGrains() {
+            const mat = new THREE.MeshBasicMaterial({ color: 0xe0b98c, transparent: true, depthWrite: false });
+            _sbLooseGrainMesh = new THREE.InstancedMesh(_sbGetGrainGeo(), mat, _SB_LOOSE_GRAIN_POOL);
+            _sbLooseGrainMesh.instanceMatrix.needsUpdate = true;
+            _sbLooseGrains = [];
+            const dummy = new THREE.Object3D();
+            dummy.scale.setScalar(0);
+            dummy.updateMatrix();
+            for (let i = 0; i < _SB_LOOSE_GRAIN_POOL; i++) {
+                _sbLooseGrainMesh.setMatrixAt(i, dummy.matrix);
+                _sbLooseGrains.push({ active: false, x: 0, y: 0, z: 0, vy: 0, age: 0, life: 1.0 });
+            }
+            scene.add(_sbLooseGrainMesh);
+        }
+
+        // Sorteia um ponto na superfície de um grão existente do corpo, em coordenadas mundiais
+        function _sbPickRandomBodyPoint() {
+            if (_sbGrainMeshes.length === 0) return null;
+            const gd = _sbGrainMeshes[Math.floor(Math.random() * _sbGrainMeshes.length)];
+            if (gd.count === 0) return null;
+            const i = Math.floor(Math.random() * gd.count);
+            const local = new THREE.Vector3(gd.basePos[i*3], gd.basePos[i*3+1], gd.basePos[i*3+2]);
+            gd.mesh.parent.updateWorldMatrix(true, false);
+            return gd.mesh.parent.localToWorld(local);
+        }
+
+        function _sbSpawnLooseGrain() {
+            const wp = _sbPickRandomBodyPoint();
+            if (!wp) return;
+            const slot = _sbLooseGrains.find(g => !g.active);
+            if (!slot) return; // pool cheio, ignora silenciosamente
+            slot.active = true;
+            slot.x = wp.x; slot.y = wp.y; slot.z = wp.z;
+            slot.vy = -0.6 - Math.random() * 0.6;
+            slot.age = 0;
+            slot.life = 1.0;
+            slot.scale = 0.5 + Math.random() * 0.6;
+        }
+
+        function _sbUpdateLooseGrains(delta) {
+            if (!_sbLooseGrainMesh) return;
+            // Spawna um grão novo a cada ~0.15-0.3s enquanto o boss está ativo (e não morrendo)
+            _sbLooseGrainSpawnTimer -= delta;
+            if (_sbLooseGrainSpawnTimer <= 0 && _sandBossState !== 'death' && _sandBossState !== 'intro') {
+                _sbSpawnLooseGrain();
+                _sbLooseGrainSpawnTimer = 0.15 + Math.random() * 0.15;
+            }
+
+            const dummy = new THREE.Object3D();
+            let any = false;
+            for (let i = 0; i < _sbLooseGrains.length; i++) {
+                const g = _sbLooseGrains[i];
+                if (!g.active) continue;
+                any = true;
+                g.age += delta;
+                if (g.age >= g.life) {
+                    g.active = false;
+                    dummy.position.set(g.x, g.y, g.z);
+                    dummy.scale.setScalar(0);
+                    dummy.updateMatrix();
+                    _sbLooseGrainMesh.setMatrixAt(i, dummy.matrix);
+                    continue;
+                }
+                g.vy -= 9.8 * delta * 0.5; // gravidade leve
+                g.y += g.vy * delta;
+                const lifeFrac = g.age / g.life;
+                const s = g.scale * (1 - lifeFrac); // encolhe até desaparecer
+                dummy.position.set(g.x, g.y, g.z);
+                dummy.scale.setScalar(Math.max(0, s));
+                dummy.updateMatrix();
+                _sbLooseGrainMesh.setMatrixAt(i, dummy.matrix);
+            }
+            if (any) _sbLooseGrainMesh.instanceMatrix.needsUpdate = true;
+        }
+
+        function _sbClearLooseGrains() {
+            if (_sbLooseGrainMesh) { scene.remove(_sbLooseGrainMesh); _sbLooseGrainMesh = null; }
+            _sbLooseGrains = [];
+        }
+
+        function updateSandBoss(delta) {
+            if (!_sandBoss || !_sandBossActive) return;
+
+            const t = clock.elapsedTime;
+            _sbMatUniforms.time.value = t;
+
+            // Atualiza collapse no shader
+            _sbMatUniforms.collapse.value += (_sbTargets.collapse - _sbMatUniforms.collapse.value) *
+                (_sandBossState === 'death' ? 0.008 : 0.05);
+            _sbUpdateGrains(t, _sbMatUniforms.eyePulse.value, _sbTargets.collapse,
+                (_sandBossState === 'death' ? 0.008 : 0.05));
+            _sbUpdateLooseGrains(delta);
+
+            // Cooldowns
+            if (_sandBossHitCooldown > 0) _sandBossHitCooldown -= delta;
+            if (playerHitCooldown > 0)    playerHitCooldown    -= delta;
+
+            // ── ESTADO: INTRO (cutscene de entrada) ──────────────────────────
+            if (_sandBossState === 'intro') {
+                const dur = t - _sbAnimTime;
+                _sbUpdateCutsceneCamera();
+
+                // Subida direta — sem depender de lerp para chegar ao groundY
+                if (dur < 2.0) {
+                    _sbRoot.position.y = _sandBossGroundY - 9;
+                } else if (dur < 4.4) {
+                    _sbRoot.position.y = _sandBossGroundY - 9 + ((dur - 2.0) / 2.4) * (9 + _BOSS_Y_LIFT);
+                } else {
+                    _sbRoot.position.y = _sandBossGroundY + _BOSS_Y_LIFT;
+                }
+                _sbTargets.rootY = _sbRoot.position.y;
+                _sbTargets.rootShakeY = 0;
+
+                if (dur < 2.0) {
+                    // Fase 1 — tremor subterrâneo
+                    _sbTargets.chestY = 1.5; _sbTargets.chestRX = 0.5; _sbTargets.neckRX = 0.5;
+                    _sbTargets.lSRX=0; _sbTargets.lSRZ=0; _sbTargets.rSRX=0; _sbTargets.rSRZ=0;
+                    _sbMatUniforms.eyePulse.value = 0.2 + Math.abs(Math.sin(t * 35)) * 0.4;
+                    const intensity = (dur/2.0)*0.18;
+                    _sbTargets.rootShakeX = Math.sin(t * 45) * intensity;
+                    _sbApplyLerp(0.15);
+
+                } else if (dur < 3.2) {
+                    // Fase 2 — garra direita irrompe
+                    _sbTargets.chestY = 1.5; _sbTargets.chestRX = 0.2;
+                    _sbTargets.rSRX = -2.2; _sbTargets.rSRZ = 0.8; _sbTargets.rERX = -0.6;
+                    _sbTargets.lSRX = 0;    _sbTargets.lSRZ = 0;
+                    _sbTargets.rootShakeX = Math.sin(t * 85) * 0.18;
+                    _sbMatUniforms.eyePulse.value = 1.6 + Math.random() * 0.4;
+                    _sbApplyLerp(0.30);
+
+                } else if (dur < 4.4) {
+                    // Fase 3 — torso sobe
+                    _sbTargets.chestY = 1.5; _sbTargets.chestRX = 0.3;
+                    _sbTargets.lSRX = -2.2; _sbTargets.lSRZ = -0.8; _sbTargets.lERX = -0.6;
+                    _sbTargets.rSRX = 0.4;  _sbTargets.rSRZ = 0.3;  _sbTargets.rERX = -0.3;
+                    _sbTargets.rootShakeX = Math.sin(t * 75) * 0.12;
+                    _sbMatUniforms.eyePulse.value = 1.8;
+                    _sbApplyLerp(0.40);
+
+                } else if (dur < 6.5) {
+                    // Fase 4 — pose final triunfal
+                    _sbTargets.chestY = 1.5; _sbTargets.chestRX = -0.6; _sbTargets.neckRX = -0.9;
+                    _sbTargets.lSRX = -0.4; _sbTargets.lSRZ = -1.6; _sbTargets.lERX = -0.6;
+                    _sbTargets.rSRX = -0.4; _sbTargets.rSRZ = 1.6;  _sbTargets.rERX = -0.6;
+                    _sbTargets.rootShakeX = Math.sin(t * 65) * 0.07;
+                    _sbMatUniforms.eyePulse.value = 3.5 + Math.sin(t * 50) * 1.5;
+                    _sbApplyLerp(0.10);
+
+                } else if (dur < 8.5) {
+                    // Fase 5 — onda de choque
+                    _sbTargets.chestY = 1.5; _sbTargets.chestRX = 0.3; _sbTargets.neckRX = 0.0;
+                    _sbTargets.lSRX = 0.0; _sbTargets.lSRZ = -1.5; _sbTargets.lERX = -0.1;
+                    _sbTargets.rSRX = 0.0; _sbTargets.rSRZ = 1.5;  _sbTargets.rERX = -0.1;
+                    _sbTargets.rootShakeX = Math.sin(t*55)*0.10;
+                    _sbMatUniforms.eyePulse.value = 1.8;
+                    _sbApplyLerp(0.25);
+
+                } else {
+                    // Intro acabou — força posição final e começa a luta
+                    _sbRoot.position.y  = _sandBossGroundY + _BOSS_Y_LIFT;
+                    _sbTargets.rootY    = _sandBossGroundY + _BOSS_Y_LIFT;
+                    _sbTargets.rootShakeX = 0;
+                    _sbTargets.rootShakeY = 0;
+                    _sandBossState   = 'idle';
+                    _sandBossTimer   = 0;
+                    _sandBossFightTimer = 0;
+                            currentState     = GAME_STATE.BOSS_FIGHT;
+                    const mc = document.getElementById('mobile-controls');
+                    if (mc) mc.style.visibility = 'visible';
+                        }
+                return;
+            }
+
+            // ── ESTADO: DEATH (cutscene de morte) ────────────────────────────
+            if (_sandBossState === 'death') {
+                const dur = t - _sbAnimTime;
+                _sbUpdateCutsceneCamera();
+                _sbTargets.collapse = Math.min(1.0, dur / 9.0);
+
+                if (dur < 2.0) {
+                    _sbTargets.rootY = _sandBossGroundY + _BOSS_Y_LIFT;
+                    _sbTargets.chestY = 1.8; _sbTargets.chestRX = -0.1; _sbTargets.neckRX = 0.4;
+                    _sbTargets.lSRX = -1.2; _sbTargets.lSRZ = -0.2; _sbTargets.lERX = -2.0;
+                    _sbTargets.rSRX = -1.2; _sbTargets.rSRZ = 0.2;  _sbTargets.rERX = -2.0;
+                    _sbMatUniforms.eyePulse.value = 2.5 + Math.random() * 2.0;
+                    _sbApplyLerp(0.06);
+                } else if (dur < 5.0) {
+                    _sbTargets.chestY = 1.5; _sbTargets.chestRX = -0.3; _sbTargets.neckRX = -0.5;
+                    _sbTargets.chestRY = Math.sin(t*4)*0.2;
+                    _sbTargets.lSRX = -2.5; _sbTargets.lSRZ = -0.5; _sbTargets.lERX = -0.5;
+                    _sbTargets.rSRX = -0.5; _sbTargets.rSRZ = 0.5;  _sbTargets.rERX = -1.5;
+                    _sbMatUniforms.eyePulse.value = 1.5 + Math.random();
+                    _sbApplyLerp(0.04);
+                } else if (dur < 7.5) {
+                    _sbTargets.chestY = 0.5; _sbTargets.chestRX = 0.6; _sbTargets.neckRX = 0.8;
+                    _sbTargets.lSRX = 0.2; _sbTargets.rSRX = 0.2;
+                    _sbMatUniforms.eyePulse.value = Math.max(0, 1.5-(dur-5.0));
+                    _sbApplyLerp(0.02);
+                } else {
+                    _sbTargets.chestY = -1.5; _sbTargets.chestRX = 1.2; _sbTargets.neckRX = 1.2;
+                    _sbApplyLerp(0.01);
+                }
+
+                if (dur > 10.0) {
+                    // Cutscene acabou — spawn do scroll e restaura gameplay
+                    destroySandBoss();
+                    spawnScroll(_sandBossArenaCenterX, _sandBossGroundY + 1, _sandBossArenaCenterZ + 5);
+                    currentState = GAME_STATE.PLAYING;
+                    const mc = document.getElementById('mobile-controls');
+                    if (mc) mc.style.visibility = 'visible';
+                    showNotification('📜 O pergaminho foi libertado!');
+                }
+                return;
+            }
+
+            // ── ESTADOS DE LUTA ───────────────────────────────────────────────
+            _sandBossTimer    += delta;
+            _sandBossFightTimer += delta;
+            const sp = _sbSpeed();
+
+            // Intervalo de cansaço
+            const tiredInterval = _BOSS_TIRED_INTERVAL[_sandBossPhase];
+            if (_sandBossState !== 'tired' && _sandBossState !== 'stunned' &&
+                _sandBossState !== 'death' && _sandBossFightTimer >= tiredInterval) {
+                _sandBossState   = 'tired';
+                _sandBossTimer   = 0;
+                _sandBossFightTimer = 0;
+                _sbClearSlamZone();
+                _sbClearClawZone();
+                _sandBossWaveObjs.forEach(w => scene.remove(w.mesh));
+                _sandBossWaveObjs = [];
+            }
+
+            // ── IDLE ──────────────────────────────────────────────────────────
+            if (_sandBossState === 'idle') {
+                _sbMatUniforms.eyePulse.value = 1.0 + Math.sin(t*2)*0.2;
+                _sbTargets.rootY   = _sandBossGroundY + _BOSS_Y_LIFT;
+                _sbTargets.chestY  = 1.5 + Math.sin(t*1.5)*0.08;
+                _sbTargets.chestRX = Math.sin(t*1.2)*0.03;
+                _sbTargets.neckRX  = -0.05 + Math.cos(t*1.5)*0.04;
+                _sbTargets.lSRX   = Math.sin(t*1.3)*0.06+0.1; _sbTargets.lSRZ=-0.15+Math.cos(t*1.1)*0.04;
+                _sbTargets.rSRX   = Math.cos(t*1.4)*0.06+0.1; _sbTargets.rSRZ=0.15-Math.cos(t*0.9)*0.04;
+                _sbTargets.rootShakeX = 0; _sbTargets.rootShakeY = 0;
+                _sbApplyLerp(0.05);
+
+                // Próximo ataque após pausa
+                if (_sandBossTimer > _BOSS_ATTACK_PAUSE[_sandBossPhase] / sp) {
+                    const next = _sbNextAttack();
+                    _sandBossState = next;
+                    _sandBossTimer = 0;
+                    _sbAnimTime    = t;
+                    if (next === 'slam')   _sbShowSlamZone();
+                    if (next === 'attack') _sbShowClawZone(Math.random()<0.5?-1:1);
+                    if (next === 'waves')  { /* anúncio visual feito pela animação */ }
+                }
+
+            // ── SLAM ─────────────────────────────────────────────────────────
+            } else if (_sandBossState === 'slam') {
+                const dur = (t - _sbAnimTime) * sp;
+                if (dur < 1.1) {
+                    _sbTargets.chestY = 2.2; _sbTargets.chestRX = -0.3; _sbTargets.neckRX = 0.3;
+                    _sbTargets.lSRX = -2.2; _sbTargets.lSRZ = -0.5; _sbTargets.lERX = -1.2;
+                    _sbTargets.rSRX = -2.2; _sbTargets.rSRZ = 0.5;  _sbTargets.rERX = -1.2;
+                    _sbMatUniforms.eyePulse.value = 1.0 + dur;
+                    _sbApplyLerp(0.12);
+                    _sbSlamZoneGrow(dur / 1.1);
+                } else if (dur < 1.5) {
+                    _sbTargets.chestY = 0.7; _sbTargets.chestRX = 0.7; _sbTargets.neckRX = -0.3;
+                    _sbTargets.lSRX = 0.6; _sbTargets.lSRZ = -0.1; _sbTargets.lERX = -0.1;
+                    _sbTargets.rSRX = 0.6; _sbTargets.rSRZ = 0.1;  _sbTargets.rERX = -0.1;
+                    const sf = (1.9-dur)*5; _sbTargets.rootShakeX=Math.cos(t*100)*sf*0.15; _sbTargets.rootShakeY=Math.sin(t*80)*sf*0.15;
+                    _sbApplyLerp(0.88);
+                    // Dano se jogador estiver na zona
+                    if (_sbSlamZone) {
+                        const pp = player.position;
+                        const pb = new THREE.Box3().setFromCenterAndSize(pp, new THREE.Vector3(1,2.5,1));
+                        if (_sbSlamZone.box.intersectsBox(pb)) _sbDamagePlayer(0.5);
+                    }
+                    _sbClearSlamZone();
+                } else if (dur < 2.1) {
+                    _sbTargets.rootShakeX = 0; _sbTargets.rootShakeY = 0;
+                    _sbTargets.chestY = 1.2; _sbTargets.chestRX = 0.2;
+                    _sbApplyLerp(0.1);
+                } else {
+                    _sandBossState = 'idle'; _sandBossTimer = 0;
+                }
+
+            // ── ATTACK (garras) ───────────────────────────────────────────────
+            } else if (_sandBossState === 'attack') {
+                const dur = (t - _sbAnimTime) * sp;
+                if (dur < 0.9) {
+                    _sbTargets.rSRX=-0.6; _sbTargets.rSRZ=1.0; _sbTargets.rERX=-1.0;
+                    _sbTargets.lSRX=0.4;  _sbTargets.lSRZ=-0.2;
+                    _sbTargets.chestRY=-0.4; _sbTargets.chestRX=0.1; _sbTargets.neckRY=0.4;
+                    _sbApplyLerp(0.18);
+                    // A zona de perigo persegue o jogador durante todo o windup
+                    _sbClawZoneTrackPlayer(0.1);
+                } else if (dur < 1.3) {
+                    // Zona travada e visível antes do golpe — dá tempo de reação real
+                    _sbClawZoneLock();
+                } else if (dur < 1.5) {
+                    _sbTargets.rSRX=0.2; _sbTargets.rSRZ=-0.7; _sbTargets.rERX=-0.2;
+                    _sbTargets.chestRY=0.5; _sbTargets.chestY=1.3; _sbApplyLerp(0.7);
+                    // Trava a zona no instante do golpe direito
+                    _sbClawZoneLock();
+                    if (_sbClawZone) {
+                        const pb = new THREE.Box3().setFromCenterAndSize(player.position, new THREE.Vector3(1,2.5,1));
+                        if (_sbClawZone.box.intersectsBox(pb)) _sbDamagePlayer(0.4);
+                    }
+                    _sbApplyLerp(0.5);
+                } else if (dur < 1.9) {
+                    _sbTargets.lSRX=-0.6; _sbTargets.lSRZ=-1.0; _sbTargets.lERX=-1.0;
+                    _sbTargets.rSRX=0.4;  _sbTargets.rSRZ=0.2;
+                    _sbTargets.chestRY=0.4; _sbTargets.chestRX=0.1; _sbTargets.neckRY=-0.4;
+                    _sbTargets.chestY=1.5;
+                    _sbApplyLerp(0.22);
+                } else if (dur < 2.1) {
+                    _sbTargets.lSRX=0.2; _sbTargets.lSRZ=0.7; _sbTargets.lERX=-0.2;
+                    _sbTargets.chestRY=-0.5; _sbTargets.chestY=1.3;
+                    // Golpe esquerdo: mesma zona travada, segunda checagem de dano
+                    if (_sbClawZone) {
+                        const pb = new THREE.Box3().setFromCenterAndSize(player.position, new THREE.Vector3(1,2.5,1));
+                        if (_sbClawZone.box.intersectsBox(pb)) _sbDamagePlayer(0.4);
+                        _sbClearClawZone();
+                    }
+                    _sbApplyLerp(0.5);
+                } else if (dur < 2.3) {
+                    _sbTargets.chestRY=0; _sbTargets.neckRY=0;
+                    _sbApplyLerp(0.15);
+                } else {
+                    _sbClearClawZone();
+                    _sandBossState = 'idle'; _sandBossTimer = 0;
+                }
+
+            // ── WAVES ─────────────────────────────────────────────────────────
+            } else if (_sandBossState === 'waves') {
+                const dur = (t - _sbAnimTime) * sp;
+                if (dur < 0.3) {
+                    // Levanta punho e avisa
+                    _sbTargets.chestRX = -0.2;
+                    _sbTargets.lSRX = -1.8; _sbTargets.lSRZ = -0.3;
+                    _sbTargets.rSRX = -1.8; _sbTargets.rSRZ = 0.3;
+                    _sbApplyLerp(0.28);
+                } else if (dur < 0.5) {
+                    // Soco no chão
+                    _sbTargets.chestRX = 0.5; _sbTargets.chestY = 0.8;
+                    _sbTargets.lSRX = 0.5; _sbTargets.rSRX = 0.5;
+                    _sbTargets.rootShakeX = Math.sin(t*80)*0.2;
+                    _sbApplyLerp(0.7);
+                    if (_sandBossWaveObjs.length === 0) _sbSpawnWaves();
+                } else {
+                    _sbTargets.chestY = 1.5; _sbTargets.chestRX = 0.1;
+                    _sbTargets.rootShakeX = 0;
+                    _sbApplyLerp(0.12);
+                }
+
+                // Move as ondas
+                for (let i = _sandBossWaveObjs.length - 1; i >= 0; i--) {
+                    const w = _sandBossWaveObjs[i];
+                    w.mesh.position.x += w.velX * delta;
+                    w.life -= delta;
+                    // Dano ao jogador — hitbox manual (Box3.setFromObject não funciona bem
+                    // com InstancedMesh nesta versão do Three, ficava menor que a onda real)
+                    const wp = w.mesh.position;
+                    const wb = new THREE.Box3(
+                        new THREE.Vector3(wp.x - 1.5, wp.y - 0.2, wp.z - 26),
+                        new THREE.Vector3(wp.x + 1.5, wp.y + 2.4, wp.z + 26)
+                    );
+                    const pb = new THREE.Box3().setFromCenterAndSize(player.position, new THREE.Vector3(1,2.5,1));
+                    if (wb.intersectsBox(pb)) _sbDamagePlayer(0.35);
+                    if (w.life <= 0 || Math.abs(w.mesh.position.x - _sandBossArenaCenterX) > 35) {
+                        scene.remove(w.mesh);
+                        _sandBossWaveObjs.splice(i, 1);
+                    }
+                }
+
+                if (dur > 3.5 && _sandBossWaveObjs.length === 0) {
+                    _sandBossState = 'idle'; _sandBossTimer = 0;
+                }
+
+            // ── TIRED (cabeça baixa — ponto fraco exposto) ────────────────────
+            } else if (_sandBossState === 'tired') {
+                const tiredDur = _BOSS_TIRED_DURATION[_sandBossPhase];
+                _sbTargets.chestY  = 0.6;
+                _sbTargets.chestRX = 0.6;
+                _sbTargets.neckRX  = 0.8; // cabeça curvada para baixo
+                _sbTargets.lSRX   = 0.3; _sbTargets.lSRZ = -0.2;
+                _sbTargets.rSRX   = 0.3; _sbTargets.rSRZ = 0.2;
+                _sbMatUniforms.eyePulse.value = 0.5 + Math.sin(t*3)*0.2;
+                _sbApplyLerp(0.06);
+
+                // Detecta stomp na cabeça: usa a posição mundial real do pivot do pescoço
+                // (em vez de fórmula manual, que ficava desalinhada a cada ajuste de escala/altura)
+                const _headWorldPos = new THREE.Vector3();
+                _sbNeckPivot.getWorldPosition(_headWorldPos);
+                const headWorldY = _headWorldPos.y + 0.9 * _BOSS_SCALE; // sobe um pouco até o topo da cabeça
+                const headWorldX = _headWorldPos.x;
+                const headWorldZ = _headWorldPos.z;
+                const isStompingBoss =
+                    velocity.y < -2 &&
+                    player.position.y > headWorldY - 1.2 &&
+                    player.position.y < headWorldY + 2.2 &&
+                    Math.abs(player.position.x - headWorldX) < 2.2 * _BOSS_SCALE &&
+                    Math.abs(player.position.z - headWorldZ) < 2.2 * _BOSS_SCALE;
+
+                if (isStompingBoss) _sbTakeHit();
+
+                if (_sandBossTimer > tiredDur) {
+                    _sandBossState = 'idle'; _sandBossTimer = 0;
+                }
+
+            // ── STUNNED (atordoado após hit) ──────────────────────────────────
+            } else if (_sandBossState === 'stunned') {
+                _sbTargets.chestY  = 0.4; _sbTargets.chestRX = 0.8;
+                _sbTargets.neckRX  = 1.0;
+                _sbTargets.rootShakeX = Math.sin(t * 25) * 0.08;
+                _sbMatUniforms.eyePulse.value = 0.1 + Math.abs(Math.sin(t*20))*0.3;
+                _sbApplyLerp(0.08);
+
+                if (_sandBossTimer > _BOSS_STUN_DURATION[_sandBossPhase]) {
+                    _sandBossState  = 'idle'; _sandBossTimer = 0;
+                    _sandBossFightTimer = 0; // reseta timer de cansaço
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // FIM MR. SANDMAN
+        // ═══════════════════════════════════════════════════════════════════════
+
         // ===== SUPORTE MOBILE =====
         (function() {
             const isMobile = /Mobi|Android|iPhone|iPad|iPod|Touch/i.test(navigator.userAgent) || ('ontouchstart' in window);
@@ -7312,7 +8518,7 @@
 
             function doJump() {
                 if (typeof currentState === 'undefined') return;
-                if (currentState !== GAME_STATE.PLAYING) return;
+                if (currentState !== GAME_STATE.PLAYING && currentState !== GAME_STATE.BOSS_FIGHT) return;
                 lastInputTime = performance.now() / 1000;
                 isAFK = false;
                 if (isGrounded) {

@@ -2237,16 +2237,21 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #0a1a3a 0%, #1a3a6a 35%, #1e5fa8 65%, #0d2d5e 100%);
+            background: linear-gradient(135deg, #061029 0%, #0d2050 35%, #133b78 65%, #081a3d 100%);
             overflow: hidden;
         }
         #results-screen::before {
             content: '';
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background:
-                radial-gradient(ellipse at 30% 40%, rgba(100,180,255,0.18) 0%, transparent 60%),
-                radial-gradient(ellipse at 70% 70%, rgba(30,80,180,0.22) 0%, transparent 55%);
+                radial-gradient(ellipse at 22% 20%, rgba(120,200,255,0.16) 0%, transparent 55%),
+                radial-gradient(ellipse at 80% 85%, rgba(40,120,230,0.24) 0%, transparent 50%);
             pointer-events: none;
+            animation: results-glow-pulse 5s ease-in-out infinite;
+        }
+        @keyframes results-glow-pulse {
+            0%, 100% { opacity: 0.75; }
+            50%      { opacity: 1; }
         }
         /* Wipe overlay que varre a tela revelando o fundo */
         #results-wipe {
@@ -2260,16 +2265,13 @@
             0%   { transform: scaleY(1); }
             100% { transform: scaleY(0); }
         }
+        /* Conteúdo solto sobre o fundo — sem caixa/cartão */
         #results-card {
             position: relative;
             z-index: 2;
-            background: rgba(10,30,70,0.82);
-            border: 3px solid rgba(100,180,255,0.55);
-            border-radius: 24px;
             text-align: center;
-            box-shadow: 0 8px 48px rgba(0,80,200,0.45), inset 0 1px 0 rgba(150,210,255,0.15);
-            padding: clamp(22px,4vh,50px) clamp(32px,6vw,80px);
-            max-width: min(90vw, 560px);
+            padding: 0 clamp(20px,5vw,40px);
+            max-width: min(92vw, 620px);
             width: 100%;
             box-sizing: border-box;
             opacity: 0;
@@ -2309,32 +2311,59 @@
             100% { opacity: 1; transform: translateY(0); }
         }
         #results-left { display: flex; flex-direction: column; align-items: center; }
-        #results-right { display: flex; flex-direction: column; align-items: center; gap: 10px; }
-        #results-emoji  { font-size: clamp(32px,5vh,64px); margin-bottom: 2px; }
-        #results-title  { color:#7ecfff; font-family:'Fredoka One',cursive; font-size:clamp(20px,4.5vh,50px); margin:0 0 4px; text-shadow:0 0 18px rgba(100,200,255,0.6),2px 2px 6px #000; letter-spacing:2px; }
-        #results-sub    { color:rgba(180,220,255,0.85); font-family:'Fredoka One',cursive; font-size:clamp(11px,2vh,20px); margin:0 0 clamp(12px,2.5vh,24px); }
-        #results-divider{ border-top:1px solid rgba(100,180,255,0.25); padding-top:clamp(10px,2vh,20px); margin-bottom:clamp(12px,2.5vh,24px); width:100%; }
-        #results-coin-row{ display:flex; align-items:center; justify-content:center; gap:10px; }
-        #results-coin-icon{ font-size:clamp(18px,3.5vh,34px); }
-        #results-coin-label{ font-family:'Fredoka One',cursive; font-size:clamp(13px,2.5vh,26px); color:#fff; text-shadow:1px 1px 3px #000; }
-        #results-coins  { font-family:'Fredoka One',cursive; font-size:clamp(15px,3vh,32px); color:#fff; text-shadow:1px 1px 3px #000; min-width:3ch; text-align:left; transition:color 0.4s, text-shadow 0.4s; }
-        #btn-win-restart{ background:linear-gradient(135deg,#1a6fc4,#2196f3) !important; border-color:rgba(120,200,255,0.8) !important; font-size:clamp(13px,2.2vh,24px) !important; padding:clamp(9px,1.8vh,16px) clamp(22px,4vw,44px) !important; box-shadow:0 4px 20px rgba(30,130,255,0.4) !important; }
+        #results-right { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+        #results-title  { color:#cfeaff; font-family:'Fredoka One',cursive; font-size:clamp(28px,6.5vh,66px); margin:0; letter-spacing:3px; text-shadow:0 0 26px rgba(110,200,255,0.65), 0 0 70px rgba(60,150,255,0.35), 2px 2px 8px rgba(0,0,0,0.6); }
+        #results-divider {
+            position: relative;
+            width: 100%;
+            padding-top: clamp(20px,3.5vh,34px);
+            margin-top: clamp(16px,3vh,30px);
+        }
+        #results-divider::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 50%;
+            transform: translateX(-50%);
+            width: 70px; height: 3px;
+            border-radius: 3px;
+            background: linear-gradient(90deg, transparent, #5fb6ff, transparent);
+            box-shadow: 0 0 14px rgba(95,182,255,0.75);
+        }
+        #results-stats { display:flex; align-items:stretch; justify-content:center; gap:0; margin-bottom: clamp(18px,3vh,30px); }
+        .results-stat { display:flex; flex-direction:column; align-items:center; gap:6px; padding:0 clamp(14px,2.2vw,26px); }
+        .results-stat:not(:first-child) { border-left:1px solid rgba(120,190,255,0.28); }
+        .results-stat-icon { font-size:clamp(16px,2.8vh,26px); filter: drop-shadow(0 0 6px rgba(255,255,255,0.25)); }
+        .results-stat-value { font-family:'Fredoka One',cursive; font-size:clamp(15px,2.8vh,28px); color:#fff; text-shadow:0 0 10px rgba(255,255,255,0.2),1px 1px 3px #000; min-width:2ch; transition:color 0.4s, text-shadow 0.4s; }
+        .results-stat-label { font-family:'Fredoka One',cursive; font-size:clamp(9px,1.5vh,13px); color:rgba(220,235,255,0.7); text-transform:uppercase; letter-spacing:1.2px; }
+        #results-actions { display:flex; flex-direction:column; align-items:center; }
+        #btn-win-restart, #btn-win-next {
+            display:inline-flex; align-items:center; gap:10px;
+            background:linear-gradient(135deg,#1a6fc4,#2196f3);
+            border-color:rgba(120,200,255,0.8);
+            font-size:clamp(13px,2.2vh,24px);
+            padding:clamp(10px,1.8vh,16px) clamp(26px,4.5vw,46px);
+            box-shadow:0 6px 26px rgba(30,130,255,0.45);
+        }
+        #btn-win-restart:hover, #btn-win-next:hover { box-shadow:0 8px 32px rgba(30,150,255,0.6); }
         /* Landscape mobile compacto */
         @media (max-height: 480px) and (orientation: landscape) {
             #results-card {
-                flex-direction: row;
                 display: flex;
+                flex-direction: row;
                 align-items: center;
-                gap: 20px;
-                padding: 14px 28px;
+                gap: 24px;
+                padding: 0 24px;
                 max-width: min(96vw, 800px);
-                border-radius: 16px;
             }
             #results-left { flex-shrink: 0; }
-            #results-emoji { font-size: clamp(22px,5vh,38px); }
-            #results-title { font-size: clamp(14px,3.5vh,24px); }
-            #results-sub   { font-size: clamp(9px,1.8vh,13px); margin-bottom: 0; }
-            #results-divider { border-top: none; border-left: 1px solid rgba(100,180,255,0.25); padding-top: 0; padding-left: 18px; margin-bottom: 0; margin-left: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; height: auto; width: auto; flex: 1; }
+            #results-title { font-size: clamp(16px,3.8vh,26px); }
+            #results-divider { padding-top: 0; padding-left: 20px; margin-top: 0; margin-left: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; height: auto; width: auto; flex: 1; }
+            #results-divider::before { top: 50%; left: 0; transform: translateY(-50%); width: 3px; height: 50px; background: linear-gradient(180deg, transparent, #5fb6ff, transparent); }
+            #results-stats { margin-bottom: 10px; }
+            .results-stat { flex-direction:row; gap:8px; padding: 0 10px; }
+            .results-stat-icon { font-size: clamp(12px,2.4vh,16px); }
+            .results-stat-value { font-size: clamp(11px,2.2vh,16px); }
+            .results-stat-label { font-size: clamp(7px,1.2vh,9px); }
         }
     </style>
     <div id="results-screen">
@@ -2345,13 +2374,27 @@
             </div>
             <div id="results-divider">
                 <div id="results-right">
-                    <div id="results-coin-row">
-                        <span id="results-coin-icon">🪙</span>
-                        <span id="results-coin-label">Moedas:</span>
-                        <span id="results-coins">0 / 993</span>
+                    <div id="results-stats">
+                        <div class="results-stat">
+                            <i class="fa-solid fa-coins results-stat-icon" style="color:#FFD700;"></i>
+                            <span class="results-stat-value" id="results-coins">0 / 993</span>
+                            <span class="results-stat-label">Moedas</span>
+                        </div>
+                        <div class="results-stat">
+                            <i class="fa-solid fa-skull results-stat-icon" style="color:#9fd6ff;"></i>
+                            <span class="results-stat-value" id="results-enemies">0 / 0</span>
+                            <span class="results-stat-label">Inimigos</span>
+                        </div>
+                        <div class="results-stat">
+                            <i class="fa-solid fa-star results-stat-icon" style="color:#ffe27a;"></i>
+                            <span class="results-stat-value" id="results-score">0</span>
+                            <span class="results-stat-label">Pontuação</span>
+                        </div>
                     </div>
-                    <button class="btn" id="btn-win-restart">🔄 Jogar Novamente</button>
-                    <button class="btn" id="btn-win-next" style="display:none;">➡️ Próxima Fase</button>
+                    <div id="results-actions">
+                        <button class="btn" id="btn-win-restart"><i class="fa-solid fa-rotate-right"></i> Jogar Novamente</button>
+                        <button class="btn" id="btn-win-next" style="display:none;"><i class="fa-solid fa-arrow-right"></i> Próxima Fase</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2378,6 +2421,8 @@
         
         let coins = 0;
         let keys = 0;
+        let enemiesKilled = 0;
+        let totalEnemiesInLevel = 0;
 
         // Sistema de vida
         const MAX_HEALTH = 5;
@@ -4312,7 +4357,7 @@
             return new THREE.CanvasTexture(canvas);
         }
 
-        function spawnScroll(x, y, z) {
+        function spawnScroll(x, y, z, fadeIn = false) {
             // ── Geometria ondulante do papel ─────────────────────────────────
             const geo = new THREE.PlaneGeometry(2.2, 2.8, 32, 32);
             const mat = new THREE.MeshStandardMaterial({
@@ -4320,6 +4365,8 @@
                 side: THREE.DoubleSide,
                 roughness: 0.88,
                 metalness: 0.04,
+                transparent: fadeIn,
+                opacity: fadeIn ? 0 : 1,
             });
             scrollMesh = new THREE.Mesh(geo, mat);
             scrollMesh.position.set(x, y, z);
@@ -4330,7 +4377,7 @@
             for (let i = 0; i < pa.count; i++) {
                 _scrollOriginalPositions.push(new THREE.Vector3().fromBufferAttribute(pa, i));
             }
-            scrollMesh.userData = { type: 'scroll', originY: y + 4 };
+            scrollMesh.userData = { type: 'scroll', originY: y + 4, fadeIn: fadeIn, fadeAge: 0 };
             scene.add(scrollMesh);
 
             // ── Halo circular no chão ─────────────────────────────────────
@@ -4339,7 +4386,7 @@
                 color: 0xffffff,
                 side: THREE.DoubleSide,
                 transparent: true,
-                opacity: 0.7,
+                opacity: fadeIn ? 0 : 0.7,
                 depthWrite: false,
             });
             scrollHalo = new THREE.Mesh(haloGeo, haloMat);
@@ -4352,6 +4399,15 @@
             if (!scrollMesh) return;
             _scrollClock += delta;
             const t = _scrollClock;
+
+            // Fade-in gradual (usado quando o pergaminho surge durante a desintegração do boss)
+            if (scrollMesh.userData.fadeIn) {
+                scrollMesh.userData.fadeAge += delta;
+                const fadeFrac = Math.min(1, scrollMesh.userData.fadeAge / 2.0);
+                scrollMesh.material.opacity = fadeFrac;
+                if (scrollHalo) scrollHalo.material.opacity = fadeFrac * 0.7;
+                if (fadeFrac >= 1) scrollMesh.userData.fadeIn = false;
+            }
 
             // Animação de onda no papel
             const pa = scrollMesh.geometry.attributes.position;
@@ -4457,6 +4513,52 @@
             requestAnimationFrame(tick);
         }
 
+        function animateEnemyCounter(targetKills) {
+            const span = document.getElementById('results-enemies');
+            const total = totalEnemiesInLevel;
+            const allKilled = total > 0 && targetKills >= total;
+            span.style.color = '#fff';
+            span.style.textShadow = '1px 1px 3px #000';
+            const duration = 1600;
+            const start = performance.now();
+            function tick(now) {
+                const elapsed = now - start;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const current = Math.round(eased * targetKills);
+                span.textContent = current + ' / ' + total;
+                if (progress < 1) {
+                    requestAnimationFrame(tick);
+                } else {
+                    span.textContent = targetKills + ' / ' + total;
+                    if (allKilled) {
+                        span.style.color = '#FFD700';
+                        span.style.textShadow = '0 0 14px #FFD700, 1px 1px 3px #000';
+                    }
+                }
+            }
+            requestAnimationFrame(tick);
+        }
+
+        function animateScoreCounter(targetScore) {
+            const span = document.getElementById('results-score');
+            const duration = 1600;
+            const start = performance.now();
+            function tick(now) {
+                const elapsed = now - start;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const current = Math.round(eased * targetScore);
+                span.textContent = current;
+                if (progress < 1) {
+                    requestAnimationFrame(tick);
+                } else {
+                    span.textContent = targetScore;
+                }
+            }
+            requestAnimationFrame(tick);
+        }
+
         function showResultsScreen() {
             // Esconde label da dança
             document.getElementById('victory-dance-label').style.display = 'none';
@@ -4478,7 +4580,7 @@
             const btnNext = document.getElementById('btn-win-next');
 
             // Mostra botão correto conforme o nível
-            if (currentLevel === 1) {
+            if (currentLevel === 1 || currentLevel === 2) {
                 btn.style.display = 'none';
                 btnNext.style.display = '';
             } else {
@@ -4519,8 +4621,11 @@
             // 4) Linha de moedas sobe
             setTimeout(() => {
                 divider.style.animation = 'results-divider-rise 0.4s cubic-bezier(0.34,1.4,0.64,1) forwards';
-                // Inicia contador animado junto
+                // Inicia contadores animados junto
+                const score = coins * 10 + enemiesKilled * 50;
                 animateCoinCounter(coins);
+                animateEnemyCounter(enemiesKilled);
+                animateScoreCounter(score);
             }, 620);
 
             // 5) Botão sobe com pequeno delay
@@ -4765,14 +4870,14 @@
             if (event.shiftKey && event.code === 'Digit3') {
                 showLoadingScreen(() => {
                     currentLevel = 3;
-                    player.position.set(109, 72, -430);
+                    player.position.set(0, 15, 0);
                     velocity.set(0, 0, 0);
                     coins = 0; keys = 0; health = MAX_HEALTH;
                     voidDamageCooldown = 0; playerHitCooldown = 0;
                     FL_isDead = false; FL_deathTimer = -1; FL_deathByEnemy = false;
                     FL_deathPivot.rotation.x = 0; FL_bodyGroup.rotation.x = 0; FL_bodyGroup.rotation.z = 0;
                     FL_deathStars.visible = false; FL_deathStars.rotation.y = 0;
-                    checkpointPos.set(109, 72, -430);
+                    checkpointPos.set(0, 15, 0);
                     lastInputTime = performance.now() / 1000; isAFK = false;
                     updateHUD();
                     _clearLevelObjects();
@@ -4853,8 +4958,10 @@
         }
 
         function restartGame() {
+            // Posição de spawn correta conforme a fase atual
+            const _spawnY = currentLevel === 2 ? 25 : (currentLevel === 3 ? 15 : 5);
             // Reseta a posição e atributos da personagem
-            player.position.set(0, 5, 0);
+            player.position.set(0, _spawnY, 0);
             velocity.set(0,0,0);
             coins = 0;
             keys = 0;
@@ -4869,7 +4976,7 @@
             FL_bodyGroup.rotation.z = 0;
             FL_deathStars.visible = false;
             FL_deathStars.rotation.y = 0;
-            checkpointPos.set(0, 5, 0);
+            checkpointPos.set(0, _spawnY, 0);
             lastInputTime = performance.now() / 1000;
             isAFK = false;
             updateHUD();
@@ -4877,6 +4984,7 @@
             // Reset do boss
             if (_sandBoss) { destroySandBoss(); }
             _sandBossActive = false; _sandBossHP = 3; _sandBossPhase = 0;
+            _sbScrollSpawned = false;
             _sandBossState = 'none'; _sandBossHitCooldown = 0;
             _sandBossWaveObjs = []; _sbClearSlamZone(); _sbClearClawZone();
 
@@ -4887,6 +4995,8 @@
             // Remove inimigos ByteBot
             enemies.forEach(e => scene.remove(e));
             enemies.length = 0;
+            enemiesKilled = 0;
+            totalEnemiesInLevel = 0;
             
             gates.forEach(g => {
                 scene.remove(g);
@@ -4942,9 +5052,18 @@
             decorations.forEach(d => scene.remove(d));
             decorations.length = 0;
 
+            // Remove chão e plataformas estáticas da fase anterior (faltava — sem isso,
+            // os objetos da fase antiga continuavam na cena e se mesclavam com a nova)
+            floorObjects.forEach(f => scene.remove(f));
+            floorObjects.length = 0;
+            collidableObjects.forEach(c => scene.remove(c));
+            collidableObjects.length = 0;
+
             // Recria a fase de raiz
             if (currentLevel === 2) {
                 buildLevel2();
+            } else if (currentLevel === 3) {
+                buildLevel3();
             } else {
                 buildLevel();
             }
@@ -4979,6 +5098,8 @@
             collectibles.length = 0;
             enemies.forEach(e => scene.remove(e));
             enemies.length = 0;
+            enemiesKilled = 0;
+            totalEnemiesInLevel = 0;
             gates.forEach(g => {
                 scene.remove(g);
                 const idx = collidableObjects.indexOf(g);
@@ -5027,10 +5148,14 @@
             if (FL_characterInner) FL_characterInner.rotation.y = 0;
             _winDanceTimer = 0;
 
+            const _fromLevel = currentLevel;
+
             showLoadingScreen(() => {
-                currentLevel = 2;
+                currentLevel = _fromLevel + 1;
+                // Posição de spawn correta conforme a fase de destino
+                const _spawnY = currentLevel === 3 ? 15 : 25;
                 // Reset jogador
-                player.position.set(0, 25, 0);
+                player.position.set(0, _spawnY, 0);
                 velocity.set(0, 0, 0);
                 coins = 0;
                 keys = 0;
@@ -5045,13 +5170,17 @@
                 FL_bodyGroup.rotation.z = 0;
                 FL_deathStars.visible = false;
                 FL_deathStars.rotation.y = 0;
-                checkpointPos.set(0, 25, 0);
+                checkpointPos.set(0, _spawnY, 0);
                 lastInputTime = performance.now() / 1000;
                 isAFK = false;
                 updateHUD();
 
                 _clearLevelObjects();
-                buildLevel2();
+                if (currentLevel === 3) {
+                    buildLevel3();
+                } else {
+                    buildLevel2();
+                }
 
                 _cachedBoxes.clear();
                 const _allForCacheLv2 = [...new Set([...collidableObjects, ...floorObjects])];
@@ -5898,6 +6027,7 @@
             };
 
             scene.add(bot);
+            totalEnemiesInLevel++;
             enemies.push(bot);
             return bot;
         }
@@ -6161,6 +6291,7 @@
         function killByteBot(bot, idx) {
             const ud = bot.userData;
             ud.dead = true;
+            enemiesKilled++;
 
             // Explosão de partículas metálicas
             const pos = bot.position;
@@ -6827,6 +6958,22 @@
                 this.el.pause();
                 this.el.src = '';
                 this.el = null;
+            },
+            // Reduz o volume gradualmente até 0 e então para — usado na cutscene do boss
+            fadeOutAndStop(duration = 1.5) {
+                if (!this.el) return;
+                const el = this.el;
+                const startVol = el.volume;
+                const startTime = performance.now();
+                this.el = null; // já "solta" a referência para não conflitar com play() futuro
+                const step = () => {
+                    const elapsed = (performance.now() - startTime) / 1000;
+                    const frac = Math.min(1, elapsed / duration);
+                    el.volume = startVol * (1 - frac);
+                    if (frac < 1) requestAnimationFrame(step);
+                    else { el.pause(); el.src = ''; }
+                };
+                requestAnimationFrame(step);
             }
         };
         // Música do título é iniciada após a sequência do menu YBOX
@@ -7286,6 +7433,7 @@
         let _sandBossTimer       = 0;      // timer de estado
         let _sandBossFightTimer  = 0;      // timer geral da luta (para cansaço)
         let _sandBossHitCooldown = 0;      // invencibilidade após hit
+        let _sbScrollSpawned = false;      // evita spawnar o pergaminho mais de uma vez na cutscene de morte
         let _sandBossStunTimer   = 0;      // tempo atordoado
         let _sandBossAttackSeq   = [];     // sequência de ataques
         let _sandBossAttackIdx   = 0;
@@ -7634,6 +7782,10 @@
             _sandBossTimer = 0;
             _sbAnimTime    = clock.elapsedTime;
 
+            // Música de fundo para em fade, e a risada do boss toca durante a entrada dele
+            _music.fadeOutAndStop(1.5);
+            new Audio('boss_laugh.mp3').play().catch(() => {});
+
             // Congela input
             Object.keys(keysPressed).forEach(k => delete keysPressed[k]);
 
@@ -7661,28 +7813,30 @@
         // --- ONDAS DO SLAM DE CHÃO ---
         let _sbWaveDir = 1; // 1 = esq→dir, -1 = dir→esq
         function _sbMakeSandWaveMesh() {
-            // Onda de areia como esferas instanciadas — mesmo sistema visual do boss
-            const count = 320;
+            // Onda de areia única e contínua, cobrindo toda a arena em Z — esferas instanciadas,
+            // mesmo sistema visual do boss. Suporta fade (opacidade) via _sbWaveSetOpacity.
+            const count = 900;
             const group = new THREE.Group();
             const dummy = new THREE.Object3D();
 
             // Agrupa por cor (mesma paleta do boss), 1 InstancedMesh por cor
             const buckets = _sbSandColors.map(() => []);
-            const basePosAll = [];
             for (let i = 0; i < count; i++) {
-                const pz = (Math.random() - 0.5) * 52;  // comprimento da onda (cobre arena)
-                const px = (Math.random() - 0.5) * 1.8; // espessura fina
-                const normZ = Math.abs(pz) / 26;
-                const maxY  = 2.2 * (1 - normZ * normZ * 0.4);
+                const pz = (Math.random() - 0.5) * 60;  // comprimento da onda — cobre toda a arena
+                const px = (Math.random() - 0.5) * 2.6; // espessura da crista
+                const normZ = Math.abs(pz) / 30;
+                const maxY  = 2.6 * (1 - normZ * normZ * 0.35);
                 const py    = Math.random() * maxY;
                 const ci = Math.floor(Math.random() * _sbSandColors.length);
                 buckets[ci].push([px, py, pz]);
             }
 
+            const mats = [];
             for (let ci = 0; ci < buckets.length; ci++) {
                 const pts = buckets[ci];
                 if (pts.length === 0) continue;
-                const mat = new THREE.MeshBasicMaterial({ color: _sbSandColors[ci] });
+                const mat = new THREE.MeshBasicMaterial({ color: _sbSandColors[ci], transparent: true, opacity: 0, depthWrite: false });
+                mats.push(mat);
                 const mesh = new THREE.InstancedMesh(_sbGetGrainGeo(), mat, pts.length);
                 for (let k = 0; k < pts.length; k++) {
                     const [px, py, pz] = pts[k];
@@ -7694,22 +7848,27 @@
                 mesh.instanceMatrix.needsUpdate = true;
                 group.add(mesh);
             }
+            group.userData.mats = mats;
             return group;
+        }
+
+        // Ajusta a opacidade de todos os materiais da onda (fade in/out)
+        function _sbWaveSetOpacity(group, opacity) {
+            for (const mat of group.userData.mats) mat.opacity = opacity;
         }
 
         function _sbSpawnWaves() {
             _sbWaveDir = Math.random() < 0.5 ? 1 : -1;
-            const startX = _sbWaveDir > 0 ? _sandBossArenaCenterX - 30 : _sandBossArenaCenterX + 30;
-            for (let i = 0; i < 3; i++) {
-                const wMesh = _sbMakeSandWaveMesh();
-                wMesh.position.set(startX, _sandBossGroundY, _sandBossArenaCenterZ - 12 + i * 12);
-                scene.add(wMesh);
-                _sandBossWaveObjs.push({
-                    mesh: wMesh,
-                    velX: _sbWaveDir * (10 + i * 2.5) * _sbSpeed(),
-                    life: 3.5
-                });
-            }
+            const startX = _sbWaveDir > 0 ? _sandBossArenaCenterX - 32 : _sandBossArenaCenterX + 32;
+            const wMesh = _sbMakeSandWaveMesh();
+            wMesh.position.set(startX, _sandBossGroundY, _sandBossArenaCenterZ);
+            scene.add(wMesh);
+            _sandBossWaveObjs.push({
+                mesh: wMesh,
+                velX: _sbWaveDir * 16 * _sbSpeed(),
+                life: 4.0,
+                age: 0
+            });
         }
 
         // --- ZONA DE PERIGO DO SLAM ---
@@ -7750,7 +7909,7 @@
             group.rotation.x = -Math.PI / 2;
             group.position.set(_sandBossArenaCenterX, _sandBossGroundY + 0.06, _sandBossArenaCenterZ);
             // Círculo delimitando a área de perigo (pequeno, contido)
-            const circleGeo = new THREE.RingGeometry(5.6, 6.2, 32);
+            const circleGeo = new THREE.RingGeometry(4.2, 4.8, 32);
             const circleMat = new THREE.MeshBasicMaterial({ color: 0xcc1100, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide });
             const circleMesh = new THREE.Mesh(circleGeo, circleMat);
             group.add(circleMesh);
@@ -7768,8 +7927,8 @@
             const cx = _sandBossArenaCenterX + _sbClawZone.cx;
             const cz = _sandBossArenaCenterZ + _sbClawZone.cz;
             _sbClawZone.box.set(
-                new THREE.Vector3(cx - 6, _sandBossGroundY, cz - 12),
-                new THREE.Vector3(cx + 6, _sandBossGroundY + 5, cz + 12)
+                new THREE.Vector3(cx - 4.5, _sandBossGroundY, cz - 5),
+                new THREE.Vector3(cx + 4.5, _sandBossGroundY + 5, cz + 5)
             );
         }
         // Faz a zona seguir o X/Z do jogador (chamado durante a janela de "telegraph")
@@ -7842,10 +8001,13 @@
             _sandBossState = 'death';
             _sandBossTimer = 0;
             _sbAnimTime    = clock.elapsedTime;
+            _sbScrollSpawned = false;
             _sbClearSlamZone();
             _sbClearClawZone();
             _sandBossWaveObjs.forEach(w => scene.remove(w.mesh));
             _sandBossWaveObjs = [];
+            _music.stop(); // para a música de luta
+            new Audio('boss_death.mp3').play().catch(() => {}); // grito de morte do boss
             const mc = document.getElementById('mobile-controls');
             if (mc) mc.style.visibility = 'hidden';
             Object.keys(keysPressed).forEach(k => delete keysPressed[k]);
@@ -8129,6 +8291,7 @@
                     _sandBossTimer   = 0;
                     _sandBossFightTimer = 0;
                             currentState     = GAME_STATE.BOSS_FIGHT;
+                    _music.play('boss_music.mp3'); // música de luta do boss
                     const mc = document.getElementById('mobile-controls');
                     if (mc) mc.style.visibility = 'visible';
                         }
@@ -8165,10 +8328,16 @@
                     _sbApplyLerp(0.01);
                 }
 
+                if (dur > 6.0 && !scrollMesh && !_sbScrollSpawned) {
+                    // Pergaminho começa a aparecer (fade-in) ainda durante a desintegração,
+                    // um pouco mais atrás do boss para o jogador não cair em cima dele
+                    _sbScrollSpawned = true;
+                    spawnScroll(_sandBossArenaCenterX, _sandBossGroundY + 1, _sandBossArenaCenterZ + 9, true);
+                }
+
                 if (dur > 10.0) {
-                    // Cutscene acabou — spawn do scroll e restaura gameplay
+                    // Cutscene acabou — restaura gameplay (pergaminho já foi spawnado antes)
                     destroySandBoss();
-                    spawnScroll(_sandBossArenaCenterX, _sandBossGroundY + 1, _sandBossArenaCenterZ + 5);
                     currentState = GAME_STATE.PLAYING;
                     const mc = document.getElementById('mobile-controls');
                     if (mc) mc.style.visibility = 'visible';
@@ -8213,9 +8382,9 @@
                     _sandBossState = next;
                     _sandBossTimer = 0;
                     _sbAnimTime    = t;
-                    if (next === 'slam')   _sbShowSlamZone();
-                    if (next === 'attack') _sbShowClawZone(Math.random()<0.5?-1:1);
-                    if (next === 'waves')  { /* anúncio visual feito pela animação */ }
+                    if (next === 'slam')   { _sbShowSlamZone(); playBossSlamSound(0.4); }
+                    if (next === 'attack') { _sbShowClawZone(Math.random()<0.5?-1:1); playBossClawSound(0.25); }
+                    if (next === 'waves')  { playBossWaveSound(0.3); }
                 }
 
             // ── SLAM ─────────────────────────────────────────────────────────
@@ -8234,8 +8403,9 @@
                     _sbTargets.rSRX = 0.6; _sbTargets.rSRZ = 0.1;  _sbTargets.rERX = -0.1;
                     const sf = (1.9-dur)*5; _sbTargets.rootShakeX=Math.cos(t*100)*sf*0.15; _sbTargets.rootShakeY=Math.sin(t*80)*sf*0.15;
                     _sbApplyLerp(0.88);
-                    // Dano se jogador estiver na zona
+                    // Som + dano no instante do impacto (só 1x: _sbSlamZone ainda existe aqui)
                     if (_sbSlamZone) {
+                        playBossSlamSound(0.9);
                         const pp = player.position;
                         const pb = new THREE.Box3().setFromCenterAndSize(pp, new THREE.Vector3(1,2.5,1));
                         if (_sbSlamZone.box.intersectsBox(pb)) _sbDamagePlayer(0.5);
@@ -8259,36 +8429,44 @@
                     _sbApplyLerp(0.18);
                     // A zona de perigo persegue o jogador durante todo o windup
                     _sbClawZoneTrackPlayer(0.1);
-                } else if (dur < 1.3) {
+                } else if (dur < 2.2) {
                     // Zona travada e visível antes do golpe — dá tempo de reação real
                     _sbClawZoneLock();
-                } else if (dur < 1.5) {
+                } else if (dur < 2.4) {
                     _sbTargets.rSRX=0.2; _sbTargets.rSRZ=-0.7; _sbTargets.rERX=-0.2;
                     _sbTargets.chestRY=0.5; _sbTargets.chestY=1.3; _sbApplyLerp(0.7);
-                    // Trava a zona no instante do golpe direito
+                    // Trava a zona no instante do golpe direito (som tocado só 1x)
                     _sbClawZoneLock();
                     if (_sbClawZone) {
+                        if (!_sbClawZone.rightHitSoundPlayed) {
+                            playBossClawSound(0.55);
+                            _sbClawZone.rightHitSoundPlayed = true;
+                        }
                         const pb = new THREE.Box3().setFromCenterAndSize(player.position, new THREE.Vector3(1,2.5,1));
                         if (_sbClawZone.box.intersectsBox(pb)) _sbDamagePlayer(0.4);
                     }
                     _sbApplyLerp(0.5);
-                } else if (dur < 1.9) {
+                } else if (dur < 2.8) {
                     _sbTargets.lSRX=-0.6; _sbTargets.lSRZ=-1.0; _sbTargets.lERX=-1.0;
                     _sbTargets.rSRX=0.4;  _sbTargets.rSRZ=0.2;
                     _sbTargets.chestRY=0.4; _sbTargets.chestRX=0.1; _sbTargets.neckRY=-0.4;
                     _sbTargets.chestY=1.5;
                     _sbApplyLerp(0.22);
-                } else if (dur < 2.1) {
+                } else if (dur < 3.0) {
                     _sbTargets.lSRX=0.2; _sbTargets.lSRZ=0.7; _sbTargets.lERX=-0.2;
                     _sbTargets.chestRY=-0.5; _sbTargets.chestY=1.3;
-                    // Golpe esquerdo: mesma zona travada, segunda checagem de dano
+                    // Golpe esquerdo: mesma zona travada, segunda checagem de dano (som só 1x)
                     if (_sbClawZone) {
+                        if (!_sbClawZone.leftHitSoundPlayed) {
+                            playBossClawSound(0.55);
+                            _sbClawZone.leftHitSoundPlayed = true;
+                        }
                         const pb = new THREE.Box3().setFromCenterAndSize(player.position, new THREE.Vector3(1,2.5,1));
                         if (_sbClawZone.box.intersectsBox(pb)) _sbDamagePlayer(0.4);
                         _sbClearClawZone();
                     }
                     _sbApplyLerp(0.5);
-                } else if (dur < 2.3) {
+                } else if (dur < 3.2) {
                     _sbTargets.chestRY=0; _sbTargets.neckRY=0;
                     _sbApplyLerp(0.15);
                 } else {
@@ -8311,7 +8489,7 @@
                     _sbTargets.lSRX = 0.5; _sbTargets.rSRX = 0.5;
                     _sbTargets.rootShakeX = Math.sin(t*80)*0.2;
                     _sbApplyLerp(0.7);
-                    if (_sandBossWaveObjs.length === 0) _sbSpawnWaves();
+                    if (_sandBossWaveObjs.length === 0) { _sbSpawnWaves(); playBossWaveSound(0.8); }
                 } else {
                     _sbTargets.chestY = 1.5; _sbTargets.chestRX = 0.1;
                     _sbTargets.rootShakeX = 0;
@@ -8323,16 +8501,21 @@
                     const w = _sandBossWaveObjs[i];
                     w.mesh.position.x += w.velX * delta;
                     w.life -= delta;
+                    w.age += delta;
+                    // Fade in nos primeiros 0.35s, fade out nos últimos 0.6s de vida
+                    const fadeIn  = Math.min(1, w.age / 0.35);
+                    const fadeOut = Math.min(1, w.life / 0.6);
+                    _sbWaveSetOpacity(w.mesh, Math.min(fadeIn, fadeOut));
                     // Dano ao jogador — hitbox manual (Box3.setFromObject não funciona bem
                     // com InstancedMesh nesta versão do Three, ficava menor que a onda real)
                     const wp = w.mesh.position;
                     const wb = new THREE.Box3(
-                        new THREE.Vector3(wp.x - 1.5, wp.y - 0.2, wp.z - 26),
-                        new THREE.Vector3(wp.x + 1.5, wp.y + 2.4, wp.z + 26)
+                        new THREE.Vector3(wp.x - 1.8, wp.y - 0.2, wp.z - 30),
+                        new THREE.Vector3(wp.x + 1.8, wp.y + 2.8, wp.z + 30)
                     );
                     const pb = new THREE.Box3().setFromCenterAndSize(player.position, new THREE.Vector3(1,2.5,1));
                     if (wb.intersectsBox(pb)) _sbDamagePlayer(0.35);
-                    if (w.life <= 0 || Math.abs(w.mesh.position.x - _sandBossArenaCenterX) > 35) {
+                    if (w.life <= 0 || Math.abs(w.mesh.position.x - _sandBossArenaCenterX) > 38) {
                         scene.remove(w.mesh);
                         _sandBossWaveObjs.splice(i, 1);
                     }
@@ -8732,6 +8915,73 @@
                 { type: 'peaking',  freq: 320,  Q: 1.0, gain: 7 },  // punch nos graves médios
                 { type: 'peaking',  freq: 900,  Q: 1.2, gain: 3 },  // presença
             ], 0.75);
+        }
+
+        // ── BOSS: SLAM (impacto pesado no chão) ──────────────────────────────────
+        // Punch grave e seco: transiente forte + corpo curto nos baixos, sem cauda longa
+        function playBossSlamSound(vol = 0.9) {
+            const sr = 44100;
+            const dur = 0.55;
+            const n = Math.floor(sr * dur);
+            const s = _whiteNoise(n);
+
+            _applyEnv(s, (p) => {
+                const transient = Math.exp(-p * 60);          // golpe seco inicial
+                const body      = Math.exp(-p * 7) * 0.6;     // corpo curto que sustenta o peso
+                return transient + body;
+            });
+
+            _playFiltered(s, sr, [
+                { type: 'lowpass',  freq: 900,  Q: 0.7 },   // bem grave, sem agudos
+                { type: 'lowpass',  freq: 450,  Q: 0.8 },   // reforça o "peso"
+                { type: 'peaking',  freq: 150,  Q: 1.1, gain: 8 },  // punch nos sub-graves
+                { type: 'peaking',  freq: 60,   Q: 1.0, gain: 4 },
+            ], vol);
+        }
+
+        // ── BOSS: GARRA (golpe cortante) ──────────────────────────────────────────
+        // Sibilante e rápido: ruído fino de alta frequência com ataque instantâneo,
+        // simula o "swoosh" cortante de uma garra rasgando o ar/areia
+        function playBossClawSound(vol = 0.5) {
+            const sr = 44100;
+            const dur = 0.32;
+            const n = Math.floor(sr * dur);
+            const s = _whiteNoise(n);
+
+            _applyEnv(s, (p) => {
+                const att = 1 - Math.exp(-p * 35);
+                const rel = Math.exp(-p * 13);
+                return att * rel;
+            });
+
+            _playFiltered(s, sr, [
+                { type: 'highpass', freq: 1500, Q: 0.6 },   // corta os graves — só o "rasgo" agudo
+                { type: 'bandpass', freq: 3200, Q: 1.8 },   // foco sibilante
+                { type: 'peaking',  freq: 4500, Q: 1.3, gain: 6 },
+                { type: 'lowpass',  freq: 7000, Q: 0.6 },   // evita aspereza digital
+            ], vol);
+        }
+
+        // ── BOSS: ONDA DE AREIA (rugido grosso e arrastado) ───────────────────────
+        // Corpo longo e denso de ruído grave, textura granulada (areia), sem tom definido
+        function playBossWaveSound(vol = 0.7) {
+            const sr = 44100;
+            const dur = 1.1;
+            const n = Math.floor(sr * dur);
+            const s = _whiteNoise(n);
+
+            _applyEnv(s, (p) => {
+                const att  = 1 - Math.exp(-p * 8);          // sobe gradual (onda se formando)
+                const body = Math.exp(-p * 2.2);            // sustenta e desvanece devagar
+                return att * body;
+            });
+
+            _playFiltered(s, sr, [
+                { type: 'highpass', freq: 90,   Q: 0.5 },
+                { type: 'lowpass',  freq: 1100, Q: 0.6 },   // grosso, abafado — textura de areia
+                { type: 'lowpass',  freq: 700,  Q: 0.8 },
+                { type: 'peaking',  freq: 250,  Q: 1.0, gain: 6 },  // corpo arrastado
+            ], vol);
         }
         // ── MOEDA ────────────────────────────────────────────────────────────────
         // Três camadas com automação de frequência no tempo:

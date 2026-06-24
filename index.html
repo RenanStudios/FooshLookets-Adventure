@@ -5806,6 +5806,7 @@
 
             // Plataforma final — pergaminho
             createPlatform(109, 42, -326, 20, 60, 20, COLORS_L3.stoneDark, 4); // topo=72
+            createCheckpoint(109, 74, -326);
             spawnCoin(109, 73.5, -326, 20);
             spawnCoin(103, 73.5, -320, 10);
             spawnCoin(115, 73.5, -332, 10);
@@ -5833,6 +5834,7 @@
 
             // Plataforma de pausa com guarda (topo=67)
             createPlatform(109, 37, -406, 18, 60, 14, COLORS_L3.stoneLight, 4); // topo=67
+            createCheckpoint(109, 69, -406);
             spawnByteBot(109, 67, -406, 18, 14, 109, -406);
             spawnCoin(103, 68.5, -402, 10);
             spawnCoin(115, 68.5, -410, 10);
@@ -6819,6 +6821,7 @@
                         }
                     }
                     updateMovingPlatforms(delta);
+                    updateAlternatingPlatforms(delta);
                     updatePhysics(delta);
                     updateCollectibles(delta);
                     updateEnemies(delta);
@@ -7268,6 +7271,12 @@
                 d.receiveShadow = decoShadows;
             }
 
+            // Sombra do boss (Fase 3) — mesmo critério das decorações: só em Ultra/Alta
+            for (const g of _sbGrainMeshes) {
+                g.mesh.castShadow    = decoShadows;
+                g.mesh.receiveShadow = decoShadows;
+            }
+
             // --- Névoa (visual) + distância de render da câmara (culling real) ---
             // Estes dois valores ficam sempre alinhados: o "far" da câmara nunca vai
             // muito além do alcance em que a névoa já esconde tudo, para a GPU não
@@ -7605,8 +7614,11 @@
                 const color = bucket.colorIdx === -1 ? new THREE.Color(0xff0000) : _sbSandColors[bucket.colorIdx];
                 const mat = new THREE.MeshBasicMaterial({ color: color });
                 const mesh = new THREE.InstancedMesh(_sbGetGrainGeo(), mat, n);
-                mesh.castShadow = false;
-                mesh.receiveShadow = false;
+                // Sombra do boss: respeita a qualidade gráfica atual desde a criação
+                // (mesmo critério das decorações — só em Ultra/Alta)
+                const _bossShadowsOn = (_pendingGraphics === 'ultra' || _pendingGraphics === 'high');
+                mesh.castShadow = _bossShadowsOn;
+                mesh.receiveShadow = _bossShadowsOn;
 
                 const baseScales = new Float32Array(n);
                 const basePos = new Float32Array(n * 3);
